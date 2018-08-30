@@ -1,10 +1,9 @@
 package au.com.agic.apptesting.utils;
 
+import javax.validation.constraints.NotNull;
 import java.io.File;
 import java.util.List;
 import java.util.Optional;
-
-import javax.validation.constraints.NotNull;
 
 /**
  * Our tests will often need to startup local proxy servers in order to perform tests. This
@@ -22,7 +21,7 @@ public interface LocalProxyUtils<T> {
 	 * api object.
 	 */
 	Optional<ProxyDetails<T>> initProxy(
-		@NotNull final List<File> globalTempFiles,
-		@NotNull final List<File> tempFolders,
-		@NotNull final Optional<ProxySettings> upstreamProxy);
+		@NotNull List<File> globalTempFiles,
+		@NotNull List<File> tempFolders,
+		@NotNull Optional<ProxySettings> upstreamProxy);
 }

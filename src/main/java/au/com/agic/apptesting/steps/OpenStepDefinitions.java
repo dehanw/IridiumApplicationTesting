@@ -1,21 +1,16 @@
 package au.com.agic.apptesting.steps;
 
-import static com.google.common.base.Preconditions.checkState;
-
 import au.com.agic.apptesting.State;
+import au.com.agic.apptesting.profiles.configuration.UrlMapping;
 import au.com.agic.apptesting.utils.AutoAliasUtils;
-import au.com.agic.apptesting.utils.FeatureState;
 import au.com.agic.apptesting.utils.SleepUtils;
-import au.com.agic.apptesting.utils.impl.AutoAliasUtilsImpl;
-import au.com.agic.apptesting.utils.impl.SleepUtilsImpl;
-
+import cucumber.api.java.en.When;
 import org.apache.commons.lang3.StringUtils;
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
+import org.openqa.selenium.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.net.URL;
 import java.util.List;
@@ -24,7 +19,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
-import cucumber.api.java.en.When;
+import static com.google.common.base.Preconditions.checkState;
 
 /**
  * Gherin steps used to open web pages.
@@ -32,10 +27,13 @@ import cucumber.api.java.en.When;
  * These steps have Atom snipptets that start with the prefix "open".
  * See https://github.com/mcasperson/iridium-snippets for more details.
  */
+@Component
 public class OpenStepDefinitions {
 	private static final Logger LOGGER = LoggerFactory.getLogger(OpenStepDefinitions.class);
-	private static final SleepUtils SLEEP_UTILS = new SleepUtilsImpl();
-	private static final AutoAliasUtils AUTO_ALIAS_UTILS = new AutoAliasUtilsImpl();
+	@Autowired
+	private SleepUtils sleepUtils;
+	@Autowired
+	private AutoAliasUtils autoAliasUtils;
 	private static final int LINK_OPEN_POOL_COUNT = 5;
 	/**
 	 * This has to be long enough to allow a request to be made, but too long
@@ -44,24 +42,25 @@ public class OpenStepDefinitions {
 	private static final int TAB_OPEN_TIME = 5000;
 
 	/**
-	 * Get the web driver for this thread
-	 */
-	private final FeatureState featureState =
-		State.THREAD_DESIRED_CAPABILITY_MAP.getDesiredCapabilitiesForThread();
-
-	/**
 	 * Opens up the supplied URL.
 	 *
 	 * @param alias include this text if the url is actually an alias to be loaded from the configuration
 	 *              file
 	 * @param url   The URL of the page to open
+	 * @param timeout Set this text to ignore timeouts when opening a page
 	 */
-	@When("^I open the page( alias)? \"([^\"]*)\"$")
-	public void openPage(final String alias, final String url) {
-		final WebDriver webDriver = State.THREAD_DESIRED_CAPABILITY_MAP.getWebDriverForThread();
-		final String urlValue = AUTO_ALIAS_UTILS.getValue(url, StringUtils.isNotBlank(alias), featureState);
-		webDriver.get(urlValue);
-		SLEEP_UTILS.sleep(featureState.getDefaultSleep());
+	@When("^I open the page( alias)? \"([^\"]*)\"(,? ignoring timeouts)?$")
+	public void openPage(final String alias, final String url, final String timeout) {
+		try {
+			final WebDriver webDriver = State.getThreadDesiredCapabilityMap().getWebDriverForThread();
+			final String urlValue = autoAliasUtils.getValue(url, StringUtils.isNotBlank(alias), State.getFeatureStateForThread());
+			webDriver.get(urlValue);
+			sleepUtils.sleep(State.getFeatureStateForThread().getDefaultSleep());
+		} catch (final TimeoutException ex) {
+			if (StringUtils.isBlank(timeout)) {
+				throw ex;
+			}
+		}
 	}
 
 	/**
@@ -73,34 +72,47 @@ public class OpenStepDefinitions {
 	 * branches.
 	 *
 	 * @param urlName The URL name from mappings to load.
+	 * @param timeout Set this text to ignore timeouts when opening a page
 	 */
-	@When("^I open the application(?: \"([^\"]*)\")?$")
-	public void openApplication(final String urlName) {
-		final WebDriver webDriver = State.THREAD_DESIRED_CAPABILITY_MAP.getWebDriverForThread();
+	@When("^I open the application(?: \"([^\"]*)\")?(,? ignoring timeouts)?$")
+	public void openApplication(final String urlName, final String timeout) {
+		try {
+			final WebDriver webDriver = State.getThreadDesiredCapabilityMap().getWebDriverForThread();
 
-		if (StringUtils.isNotBlank(urlName)) {
-			LOGGER.info("WEBAPPTESTER-INFO-0001: Opened the url {}",
-				featureState.getUrlDetails().getUrl(urlName));
+			if (StringUtils.isNotBlank(urlName)) {
 
-			final String url = featureState.getUrlDetails().getUrl(urlName);
+				final String url = State.getFeatureStateForThread().getUrlDetails()
+					.map(urlMapping -> urlMapping.getUrl(urlName))
+					.orElse(null);
 
-			checkState(StringUtils.isNotBlank(url), "The url associated with the app name "
-				+ urlName + " was not found. "
-				+ "This may mean that you have defined a default URL with the appURLOverride "
-				+ "system property. "
-				+ "When you set the appURLOverride system property, you can no longer reference "
-				+ "named applications. "
-				+ "Alternatively, make sure the configuration file defines the named application.");
+				checkState(StringUtils.isNotBlank(url), "The url associated with the app name "
+					+ urlName + " was not found. "
+					+ "This may mean that you have defined a default URL with the appURLOverride "
+					+ "system property. "
+					+ "When you set the appURLOverride system property, you can no longer reference "
+					+ "named applications. "
+					+ "Alternatively, make sure the configuration file defines the named application.");
 
+				LOGGER.info("WEBAPPTESTER-INFO-0001: Opened the url {}", url);
 
-			webDriver.get(url);
-		} else {
-			LOGGER.info("WEBAPPTESTER-INFO-0001: Opened the url {}",
-				featureState.getUrlDetails().getDefaultUrl());
-			webDriver.get(featureState.getUrlDetails().getDefaultUrl());
+				webDriver.get(url);
+			} else {
+				final String url = State.getFeatureStateForThread().getUrlDetails()
+					.map(UrlMapping::getDefaultUrl)
+					.orElse(null);
+
+				checkState(StringUtils.isNotBlank(url), "You have not defined a default URL");
+
+				LOGGER.info("WEBAPPTESTER-INFO-0001: Opened the url {}", url);
+				webDriver.get(url);
+			}
+
+			sleepUtils.sleep(State.getFeatureStateForThread().getDefaultSleep());
+		} catch (final TimeoutException ex) {
+			if (StringUtils.isBlank(timeout)) {
+				throw ex;
+			}
 		}
-
-		SLEEP_UTILS.sleep(featureState.getDefaultSleep());
 	}
 
 	/**
@@ -112,7 +124,7 @@ public class OpenStepDefinitions {
 	 */
 	@When("^I open all links in new tabs and then close the tabs$")
 	public void openAllLinks() throws InterruptedException {
-		final WebDriver webDriver = State.THREAD_DESIRED_CAPABILITY_MAP.getWebDriverForThread();
+		final WebDriver webDriver = State.getThreadDesiredCapabilityMap().getWebDriverForThread();
 		final JavascriptExecutor js = JavascriptExecutor.class.cast(webDriver);
 		final List<WebElement> links = webDriver.findElements(By.tagName("a"));
 		final ExecutorService executor = Executors.newFixedThreadPool(LINK_OPEN_POOL_COUNT);
@@ -132,7 +144,7 @@ public class OpenStepDefinitions {
 							+ "})()"
 						);
 
-						SLEEP_UTILS.sleep(TAB_OPEN_TIME);
+						sleepUtils.sleep(TAB_OPEN_TIME);
 					} catch (final Exception ignored) {
 						/*
 							ignored because the link didn't contain a valid url

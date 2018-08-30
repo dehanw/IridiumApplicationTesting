@@ -1,6 +1,7 @@
 package au.com.agic.apptesting;
 
 import au.com.agic.apptesting.constants.Constants;
+import au.com.agic.apptesting.utils.FeatureState;
 import au.com.agic.apptesting.utils.SystemPropertyUtils;
 import au.com.agic.apptesting.utils.ThreadWebDriverMap;
 import au.com.agic.apptesting.utils.impl.LocalThreadWebDriverMapImpl;
@@ -13,19 +14,25 @@ import au.com.agic.apptesting.utils.impl.SystemPropertyUtilsImpl;
  */
 public final class State {
 
-	public static final ThreadWebDriverMap THREAD_DESIRED_CAPABILITY_MAP;
+	private static ThreadWebDriverMap threadDesiredCapabilityMap;
 	private static final SystemPropertyUtils SYSTEM_PROPERTY_UTILS = new SystemPropertyUtilsImpl();
 
-	static {
-		/*
-			Select the location of the tests based on the system property
-		 */
-		THREAD_DESIRED_CAPABILITY_MAP = Constants.REMOTE_TESTS.equalsIgnoreCase(
+	public static void initialise() {
+		threadDesiredCapabilityMap = Constants.REMOTE_TESTS.equalsIgnoreCase(
 			SYSTEM_PROPERTY_UTILS.getProperty(Constants.TEST_DESTINATION_SYSTEM_PROPERTY))
 			? new RemoteThreadWebDriverMapImpl()
 			: new LocalThreadWebDriverMapImpl();
 	}
 
 	private State() {
+	}
+
+	public static FeatureState getFeatureStateForThread() {
+		return getThreadDesiredCapabilityMap().getDesiredCapabilitiesForThread(
+			Thread.currentThread().getName());
+	}
+
+	public static ThreadWebDriverMap getThreadDesiredCapabilityMap() {
+		return threadDesiredCapabilityMap;
 	}
 }

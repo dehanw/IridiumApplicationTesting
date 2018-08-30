@@ -1,0 +1,71 @@
+<profile>
+    <browserstack>
+        <accessToken>token</accessToken>
+        <username>user</username>
+    </browserstack>
+    <settings>
+		<!-- https://www.browserstack.com/automate/junit#configure-capabilities -->
+		<desiredCapabilities enabled="true" group="Android,Mobile">
+			<capability name="os_version" value="7.0"/>
+			<capability name="device" value="Samsung Galaxy S8"/>
+			<capability name="real_mobile" value="true"/>
+			<capability name="browserstack.local" value="false"/>
+			<capability name="browserstack.selenium_version" value="3.4.0"/>
+		</desiredCapabilities>
+		<desiredCapabilities enabled="true" group="iPad,Mobile">
+			<capability name="os_version" value="11.0"/>
+			<capability name="real_mobile" value="true"/>
+			<capability name="device" value="iPad 5th"/>
+			<capability name="browserstack.local" value="false"/>
+			<capability name="browserstack.selenium_version" value="3.4.0"/>
+		</desiredCapabilities>
+		<desiredCapabilities enabled="true" group="iPhone,Mobile">
+			<capability name="real_mobile" value="true"/>
+			<capability name="os_version" value="10.3"/>
+			<capability name="platform" value="MAC"/>
+			<capability name="device" value="iPhone 7"/>
+			<capability name="browserstack.local" value="false"/>
+			<capability name="browserstack.selenium_version" value="3.4.0"/>
+		</desiredCapabilities>
+		<desiredCapabilities enabled="true" group="Edge,Desktop">
+			<capability name="platform" value="WINDOWS"/>
+			<capability name="browserName" value="edge"/>
+			<capability name="browserstack.edge.enablePopups" value="true"/>
+			<capability name="browserstack.selenium_version" value="3.4.0"/>
+		</desiredCapabilities>
+		<desiredCapabilities enabled="true" group="Safari,Desktop">
+			<capability name="platform" value="MAC"/>
+			<capability name="browserName" value="safari"/>
+			<capability name="browserstack.selenium_version" value="3.4.0"/>
+			<capability name="browserstack.safari.enablePopups" value="true"/>
+		</desiredCapabilities>
+		<desiredCapabilities enabled="true" group="IE,Desktop">
+			<capability name="platform" value="WIN8"/>
+			<capability name="browserName" value="internet explorer"/>
+			<capability name="browserstack.selenium_version" value="3.4.0"/>
+			<capability name="browserstack.ie.enablePopups" value="true"/>
+		</desiredCapabilities>
+		<desiredCapabilities enabled="false" group="Firefox,Desktop">
+			<capability name="platform" value="WIN8"/>
+			<capability name="browserName" value="firefox"/>
+			<capability name="browserstack.selenium_version" value="3.4.0"/>
+		</desiredCapabilities>
+		<desiredCapabilities enabled="false" group="Chrome,Desktop">
+			<capability name="platform" value="WIN8"/>
+			<capability name="browserName" value="chrome"/>
+			<capability name="browserstack.selenium_version" value="3.4.0"/>
+		</desiredCapabilities>
+		<desiredCapabilities enabled="false" group="Opera,Desktop">
+			<capability name="platform" value="WIN8"/>
+			<capability name="browserName" value="opera"/>
+			<capability name="browserstack.selenium_version" value="3.4.0"/>
+		</desiredCapabilities>
+    </settings>
+    <urlMappings>
+        <featureGroup name="Google">
+            <urlMapping>
+                <url name="default">https://google.com</url>
+            </urlMapping>
+        </featureGroup>
+    </urlMappings>
+</profile>

@@ -1,16 +1,49 @@
-# A&G Iridium Application Testing Suite
+# Iridium Application Testing Suite
+
+## BrowserStack
+
+![Browserstack](browserstack.png)
+
+Thanks to Browserstack for their support of this project.
+
+## Important Announcements
+
+The location of the JAR file that is referenced by the Web Start JNLP files has changed recently. It used to be https://s3-ap-southeast-2.amazonaws.com/ag-iridium/, so your JNLP files used to look like this:
+```
+<?xml version="1.0" encoding="UTF-8"?>  
+<jnlp spec="1.0+" codebase="https://s3-ap-southeast-2.amazonaws.com/ag-iridium/">  
+    ...  
+</jnlp>
+```
+The new file location is https://s3.amazonaws.com/iridium-release, so your JNLP files should look like this:
+```
+<?xml version="1.0" encoding="UTF-8"?>  
+<jnlp spec="1.0+" codebase="https://s3.amazonaws.com/iridium-release">  
+    ...  
+</jnlp>
+```
+Files from https://s3-ap-southeast-2.amazonaws.com/ag-iridium/won't be updated, and the certificate used to sign the JAR file has expired, so you will most likely receive a warning if you do not update the location.
+
+## Chat
+
+[![Chat](https://badges.gitter.im/Iridiumtester/repo.png)](https://gitter.im/Iridiumtester/Lobby)
 
 ## Build Status
 [![Build Status](https://travis-ci.org/mcasperson/IridiumApplicationTesting.svg?branch=master)](https://travis-ci.org/mcasperson/IridiumApplicationTesting)
 
 [![Dependency Status](https://www.versioneye.com/user/projects/57c4c52f69d94900403f6466/badge.svg?style=flat-square)](https://www.versioneye.com/user/projects/57c4c52f69d94900403f6466)
 
+[![codecov](https://codecov.io/gh/mcasperson/IridiumApplicationTesting/branch/master/graph/badge.svg)](https://codecov.io/gh/mcasperson/IridiumApplicationTesting)
+
 ## Documentation
 See the [documentation](https://autogeneral.gitbooks.io/iridiumapplicationtesting-gettingstartedguide/content/)
 for more details.
 
+## Training
+A training package has been made available on [Udemy](https://www.udemy.com/creating-end-to-end-tests-with-cucumber-and-webdriver/?couponCode=IRIDIUM_COUPON_2017).
+
 ## Downloads
-Download the latest version from [here](https://s3-ap-southeast-2.amazonaws.com/ag-iridium/IridiumApplicationTesting.jar)
+Download the latest version from [here](https://s3.amazonaws.com/iridium-release/IridiumApplicationTesting.jar)
 
 Find past releases [here](https://github.com/mcasperson/IridiumApplicationTesting/releases)
 
@@ -43,3 +76,5 @@ Find past releases [here](https://github.com/mcasperson/IridiumApplicationTestin
 * [Are Cucumber Features and Scenarios to Be Taken Literally?](https://dzone.com/articles/do-you-need-to-take-a-literal-view-of-features-and)
 
 * [Running Iridium Scripts in Firefox With Jenkins](https://dzone.com/articles/running-iridium-scripts-in-firefox-in-jenkins)
+
+* [Introducing PICQT for Writing Cucumber Tests With Iridium](https://dzone.com/articles/introducing-picqt-for-writing-cucumber-tests-with)

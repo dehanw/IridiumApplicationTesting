@@ -1,35 +1,52 @@
 package au.com.agic.apptesting.utils.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-import static com.google.common.base.Preconditions.checkState;
-
+import au.com.agic.apptesting.constants.Constants;
 import au.com.agic.apptesting.utils.FeatureFileImporter;
 import au.com.agic.apptesting.utils.StringBuilderUtils;
-
+import io.vavr.control.Try;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.retry.policy.SimpleRetryPolicy;
+import org.springframework.retry.support.RetryTemplate;
 
+import javax.validation.constraints.NotNull;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import javax.validation.constraints.NotNull;
-
-import javaslang.control.Try;
+import static com.google.common.base.Preconditions.checkNotNull;
+import static com.google.common.base.Preconditions.checkState;
 
 /**
  * An implementation of the FeatureFileImporter interface
  */
+
 public class FeatureFileImporterImpl implements FeatureFileImporter {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(FeatureFileImporterImpl.class);
 	private static final Pattern IMPORT_COMMENT_RE = Pattern.compile("^\\s*#\\s*IMPORT\\s*:\\s*(?<filename>.*?)$");
+	/**
+	 * This is a regex to match Feature lines
+	 */
+	private static final Pattern FEATURE_STANZA_RE =
+		Pattern.compile("^\\s*Feature\\s*:.*?$", Pattern.CASE_INSENSITIVE);
+	/**
+	 * This is a regex to match Scenario, Background, Scenario Outline etc lines
+	 */
+	private static final Pattern START_STANZA_RE =
+		Pattern.compile("^\\s*(Scenario|Background|Scenario Outline|Scenario Template)\\s*:.*?$", Pattern.CASE_INSENSITIVE);
+	/**
+	 * This is a regex to match a tag
+	 */
+	private static final Pattern TAG_ANNOTATION_RE = Pattern.compile("^\\s*@.*?$");
 	private static final StringBuilderUtils STRING_BUILDER_UTILS = new StringBuilderUtilsImpl();
 
 	@Override
@@ -50,7 +67,8 @@ public class FeatureFileImporterImpl implements FeatureFileImporter {
 			/*
 				Read the original file
 			 */
-			final String[] fileContents = FileUtils.readFileToString(file.getFile()).split("\n");
+			final String[] fileContents = FileUtils.readFileToString(file.getFile(), Charset.defaultCharset())
+				.split(Constants.LINE_END_REGEX);
 			/*
 				Loop over each line looking for an import comment
 			 */
@@ -67,35 +85,27 @@ public class FeatureFileImporterImpl implements FeatureFileImporter {
 					 */
 					final String filename = matcher.group("filename");
 					final String completeFileName = fixedBaseUrl + filename;
-					final StringBuilder importFileContents = new StringBuilder();
 
-					Try.of(() -> new File(completeFileName))
-						.andThenTry(
-							e -> importFileContents.append(FileUtils.readFileToString(e))
-						)
-						.orElseRun(e -> Try.of(
-							() -> importFileContents.append(
-								processRemoteUrl(completeFileName)))
+					Try.of(() -> FileUtils.readFileToString(new File(completeFileName), Charset.defaultCharset()))
+						.orElse(Try.of(() -> processRemoteUrl(completeFileName)))
+						.map(this::clearContentToFirstScenario)
+						.peek(s -> STRING_BUILDER_UTILS.appendWithDelimiter(
+							output, s, Constants.LINE_END_OUTPUT)
 						);
-
-					STRING_BUILDER_UTILS.appendWithDelimiter(
-						output,
-						importFileContents.toString(),
-						"\n");
 				} else {
 					/*
 						This is not an import comment, so copy the input line directly to the
 						output
 					 */
-					STRING_BUILDER_UTILS.appendWithDelimiter(output, line, "\n");
+					STRING_BUILDER_UTILS.appendWithDelimiter(output, line, Constants.LINE_END_OUTPUT);
 				}
 			}
 
 			/*
 				Save the new file
 			 */
-			final File newFile = getNewTempFile(file.getFile());
-			FileUtils.write(newFile, output.toString(), false);
+			final File newFile = Files.createTempFile("", file.getFile().getName()).toFile();
+			FileUtils.write(newFile, output.toString(), Charset.defaultCharset(), false);
 			return newFile;
 
 		} catch (final IOException ex) {
@@ -108,15 +118,63 @@ public class FeatureFileImporterImpl implements FeatureFileImporter {
 		return file.getFile();
 	}
 
-	private File getNewTempFile(final File file) throws IOException {
-		final Path temp2 = Files.createTempDirectory(null);
-		return new File(temp2 + "/" + file.getName());
+	/**
+	 * https://github.com/AutoGeneral/IridiumApplicationTesting/issues/66
+	 * @param contents The raw contents
+	 * @return The contents of the supplied string from the first Scenario to the end of the file
+	 */
+	public String clearContentToFirstScenario(@NotNull final String contents) {
+		checkNotNull(contents);
+		/*
+			http://stackoverflow.com/questions/25569836/equivalent-of-scala-dropwhile
+			Make up for the last of a dropWhile
+		 */
+		//CHECKSTYLE.OFF: VisibilityModifier
+		class MutableBoolean {
+			boolean foundFeature;
+			boolean foundScenarioOrTag;
+		}
+		//CHECKSTYLE.ON: VisibilityModifier
+
+		final MutableBoolean inTail = new MutableBoolean();
+
+		final String processedFeature = Stream.of(contents.split(Constants.LINE_END_REGEX))
+			.filter(i -> {
+				inTail.foundFeature = inTail.foundFeature || FEATURE_STANZA_RE.matcher(i).matches();
+				inTail.foundScenarioOrTag = inTail.foundFeature
+					&& (inTail.foundScenarioOrTag
+					|| TAG_ANNOTATION_RE.matcher(i).matches()
+					|| START_STANZA_RE.matcher(i).matches());
+
+				return inTail.foundFeature && inTail.foundScenarioOrTag;
+			})
+			.collect(Collectors.joining(Constants.LINE_END_OUTPUT));
+
+		/*
+			If the result is empty, then the file being processed is not a complete
+			feature file, and we simply return the original input, which we assume
+			is a fragment.
+		 */
+		return StringUtils.isBlank(processedFeature)
+			? contents
+			: processedFeature;
 	}
 
 	private String processRemoteUrl(@NotNull final String path) throws IOException {
 		final File copy = File.createTempFile("webapptester", ".feature");
-		FileUtils.copyURLToFile(new URL(path), copy);
-		return FileUtils.readFileToString(copy);
+
+		try {
+			final RetryTemplate template = new RetryTemplate();
+			final SimpleRetryPolicy policy = new SimpleRetryPolicy();
+			policy.setMaxAttempts(Constants.URL_COPY_RETRIES);
+			template.setRetryPolicy(policy);
+			return template.execute(context -> {
+				FileUtils.copyURLToFile(new URL(path), copy);
+				return FileUtils.readFileToString(copy, Charset.defaultCharset());
+			});
+		} finally {
+			FileUtils.deleteQuietly(copy);
+		}
 	}
 
 	private String getFixedBaseUrl(@NotNull final FileDetails file, final String baseUrl) {
@@ -124,8 +182,8 @@ public class FeatureFileImporterImpl implements FeatureFileImporter {
 
 		if (file.isLocalSource() || StringUtils.isBlank(baseUrl)) {
 			checkState(file.getFile() != null);
-			checkState(file.getFile().getParentFile() != null);
-			return file.getFile().getParentFile().getAbsolutePath() + "/";
+			checkState(file.getFile().getAbsoluteFile().getParentFile() != null);
+			return file.getFile().getAbsoluteFile().getParentFile().getAbsolutePath() + "/";
 		}
 
 		return baseUrl;

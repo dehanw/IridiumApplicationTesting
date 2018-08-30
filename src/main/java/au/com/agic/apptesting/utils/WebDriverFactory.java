@@ -2,9 +2,10 @@ package au.com.agic.apptesting.utils;
 
 import au.com.agic.apptesting.constants.Constants;
 import au.com.agic.apptesting.utils.impl.SystemPropertyUtilsImpl;
-
 import org.openqa.selenium.WebDriver;
 
+import javax.validation.constraints.NotNull;
+import java.io.File;
 import java.util.List;
 
 /**
@@ -15,9 +16,10 @@ public interface WebDriverFactory {
 
 	/**
 	 * @param proxies The list of proxies that are used when configuring the web driver
+	 * @param tempFiles maintains a list of temp files that are deleted once Iridium is closed
 	 * @return A new instance of a webdriver
      */
-	WebDriver createWebDriver(final List<ProxyDetails<?>> proxies);
+	WebDriver createWebDriver(@NotNull List<ProxyDetails<?>> proxies, @NotNull List<File> tempFiles);
 
 	/**
 	 *

@@ -1,21 +1,19 @@
 package au.com.agic.apptesting.steps;
 
 import au.com.agic.apptesting.State;
-import au.com.agic.apptesting.utils.FeatureState;
 import au.com.agic.apptesting.utils.ScreenshotUtils;
-import au.com.agic.apptesting.utils.impl.ScreenshotUtilsImpl;
-
+import cucumber.api.java.en.When;
 import org.apache.commons.lang3.StringUtils;
 import org.openqa.selenium.Cookie;
 import org.openqa.selenium.JavascriptExecutor;
 import org.openqa.selenium.WebDriver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.stream.Collectors;
-
-import cucumber.api.java.en.When;
 
 /**
  * Gherkin steps used to debug a test script.
@@ -23,15 +21,11 @@ import cucumber.api.java.en.When;
  * These steps have Atom snipptets that start with the prefix "dump" and "delete".
  * See https://github.com/mcasperson/iridium-snippets for more details.
  */
+@Component
 public class DebuggingStepDefinitions {
 	private static final Logger LOGGER = LoggerFactory.getLogger(DebuggingStepDefinitions.class);
-	private static final ScreenshotUtils SCREENSHOT_UTILS = new ScreenshotUtilsImpl();
-
-	/**
-	 * Get the web driver for this thread
-	 */
-	private final FeatureState featureState =
-		State.THREAD_DESIRED_CAPABILITY_MAP.getDesiredCapabilitiesForThread();
+	@Autowired
+	private ScreenshotUtils screenshotUtils;
 
 	/**
 	 * Manually save a screenshot
@@ -40,9 +34,9 @@ public class DebuggingStepDefinitions {
 	 */
 	@When("^I take a screenshot(?:(?: called)? \"(.*?)\")?$")
 	public void takeScreenshotStep(final String filename) {
-		SCREENSHOT_UTILS.takeScreenshot(
+		screenshotUtils.takeScreenshot(
 			StringUtils.defaultIfBlank(filename, ""),
-			featureState);
+			State.getFeatureStateForThread());
 	}
 
 	/**
@@ -52,7 +46,7 @@ public class DebuggingStepDefinitions {
 	 */
 	@When("^I dump the value of the cookie called \"(.*?)\"$")
 	public void dumpCookieName(final String cookieName) {
-		final WebDriver webDriver = State.THREAD_DESIRED_CAPABILITY_MAP.getWebDriverForThread();
+		final WebDriver webDriver = State.getThreadDesiredCapabilityMap().getWebDriverForThread();
 		webDriver.manage().getCookies().stream()
 			.filter(e -> StringUtils.equals(cookieName, e.getName()))
 			.forEach(e -> LOGGER.info("Dumping cookie {}", e));
@@ -67,7 +61,7 @@ public class DebuggingStepDefinitions {
 	 */
 	@When("^I delete cookies called \"(.*?)\"(?: with the path \"(.*?)\")?$")
 	public void deleteCookie(final String cookieName, final String path) {
-		final WebDriver webDriver = State.THREAD_DESIRED_CAPABILITY_MAP.getWebDriverForThread();
+		final WebDriver webDriver = State.getThreadDesiredCapabilityMap().getWebDriverForThread();
 		final List<Cookie> deleteCookies = webDriver.manage().getCookies().stream()
 			.filter(e -> StringUtils.equals(cookieName, e.getName()))
 			.filter(e -> StringUtils.isBlank(path) || StringUtils.equals(path, e.getPath()))
@@ -85,16 +79,29 @@ public class DebuggingStepDefinitions {
 	 */
 	@When("^I delete all cookies$")
 	public void deleteAllCookie() {
-		final WebDriver webDriver = State.THREAD_DESIRED_CAPABILITY_MAP.getWebDriverForThread();
+		final WebDriver webDriver = State.getThreadDesiredCapabilityMap().getWebDriverForThread();
 		webDriver.manage().deleteAllCookies();
 	}
 
+	/**
+	 * Dumps the alias map to the console
+	 */
 	@When("I dump the alias map to the console$")
 	public void dumpAliasMap() {
-		LOGGER.info("Dump of the alias map.");
-		for (final String key : featureState.getDataSet().keySet()) {
-			LOGGER.info("{}: {}", key, featureState.getDataSet().get(key));
-		}
+		LOGGER.info("Dump of the alias map for thread {}", Thread.currentThread().getName());
+		State.getFeatureStateForThread().getDataSet().entrySet().stream()
+			.sorted((o1, o2) -> o1.getKey().compareTo(o2.getKey()))
+			.forEach(entry -> LOGGER.info("{}: {}", entry.getKey(), entry.getValue()));
+	}
+
+	/**
+	 * Dumps the value of an alias to the console. This is useful when running test scripts
+	 * with data sets and finding out what value was used in a step for a certain run.
+	 * @param alias The name of the alias
+	 */
+	@When("I dump the value of the alias \"(.*?)\" to the console$")
+	public void dumpIndividualAlias(final String alias) {
+		LOGGER.info("Alias {} is set to {}", alias, State.getFeatureStateForThread().getDataSet().get(alias));
 	}
 
 	/**
@@ -104,7 +111,7 @@ public class DebuggingStepDefinitions {
 	 */
 	@When("I display a starting marker$")
 	public void displayStartingMarker() {
-		final WebDriver webDriver = State.THREAD_DESIRED_CAPABILITY_MAP.getWebDriverForThread();
+		final WebDriver webDriver = State.getThreadDesiredCapabilityMap().getWebDriverForThread();
 		final JavascriptExecutor js = (JavascriptExecutor) webDriver;
 		js.executeScript("javascript:window.document.body.innerHTML = "
 			+ "'<div style=\"margin: 50px; font-size: 20px\">Starting</div>'");

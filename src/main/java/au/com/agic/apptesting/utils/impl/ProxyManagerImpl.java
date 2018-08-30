@@ -1,24 +1,23 @@
 package au.com.agic.apptesting.utils.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
+import au.com.agic.apptesting.constants.Constants;
 import au.com.agic.apptesting.exception.ProxyException;
-import au.com.agic.apptesting.utils.LocalProxyUtils;
-import au.com.agic.apptesting.utils.ProxyDetails;
-import au.com.agic.apptesting.utils.ProxyManager;
-import au.com.agic.apptesting.utils.ProxySettings;
-import au.com.agic.apptesting.utils.SystemPropertyUtils;
-
+import au.com.agic.apptesting.utils.*;
+import io.vavr.control.Try;
 import net.lightbody.bmp.BrowserMobProxy;
-
+import org.apache.commons.lang3.StringUtils;
 import org.zaproxy.clientapi.core.ClientApi;
 
+import javax.validation.constraints.NotNull;
 import java.io.File;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
 import java.util.Optional;
 
-import javax.validation.constraints.NotNull;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * An implementation of the proxy manager service
@@ -56,16 +55,26 @@ public class ProxyManagerImpl implements ProxyManager {
 				BROWSERMOB_PROXY.initProxy(globalTempFiles, tempFiles, browserMobUpstream);
 
 			/*
-				We always enable the BrowserMob proxy
+				Create the collection of proxies
 			 */
 			final List<ProxyDetails<?>> proxies = new ArrayList<>();
-			proxies.add(browermobProxy.get());
 
-			/*
-				Forward browsermob to ZAP
-			 */
-			if (zapProxy.isPresent()) {
+			if (browermobProxy.isPresent()) {
+				proxies.add(browermobProxy.get());
+
+				/*
+					Forward browsermob to ZAP
+				 */
+				if (zapProxy.isPresent()) {
+					proxies.add(zapProxy.get());
+				}
+			} else if (zapProxy.isPresent()) {
 				proxies.add(zapProxy.get());
+
+				/*
+					In the event that zap is enabled and browsermob isn't, ZAP is the main proxy
+				 */
+				zapProxy.get().setMainProxy(true);
 			}
 
 			return proxies;
@@ -77,12 +86,35 @@ public class ProxyManagerImpl implements ProxyManager {
 	}
 
 	@Override
-	public void stopProxies(final List<ProxyDetails<?>> proxies) {
+	public void stopProxies(@NotNull final List<ProxyDetails<?>> proxies, final String reportOutput) {
+		checkNotNull(proxies);
+		checkArgument(StringUtils.isNotBlank(reportOutput));
 
-		if (proxies != null) {
-			proxies.stream()
-				.filter(BrowsermobProxyUtilsImpl.PROXY_NAME::equals)
-				.forEach(x -> BrowserMobProxy.class.cast(x.getInterface().get()).stop());
-		}
+		proxies.stream()
+			.filter(proxyDetails -> BrowsermobProxyUtilsImpl.PROXY_NAME.equals(proxyDetails.getProxyName()))
+			.forEach(x -> x.getInterface()
+				.map(BrowserMobProxy.class::cast)
+				.ifPresent(proxy -> {
+					/*
+						Save the HAR file before the proxy is shut down. Doing this work
+						here means that the HAR file is always available, even if the
+						test failed and a step like "I dump the HAR file" was not executed.
+					 */
+					if (proxy.getHar() != null) {
+						Try.run(() -> {
+							final String filename = Constants.HAR_FILE_NAME_PREFIX
+								+ new SimpleDateFormat(Constants.FILE_DATE_FORMAT).format(new Date())
+								+ "."
+								+ Constants.HAR_FILE_NAME_EXTENSION;
+
+							final File file = new File(
+								reportOutput
+									+ "/"
+									+ filename);
+							proxy.getHar().writeTo(file);
+						});
+					}
+					proxy.abort();
+				}));
 	}
 }

@@ -4,15 +4,18 @@ import au.com.agic.apptesting.exception.InvalidInputException;
 import au.com.agic.apptesting.utils.AutoAliasUtils;
 import au.com.agic.apptesting.utils.FeatureState;
 import au.com.agic.apptesting.utils.GetBy;
-
 import org.openqa.selenium.By;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 /**
  * Implementation of the GetBy service
  */
+@Component
 public class GetByImpl implements GetBy {
 
-	private static final AutoAliasUtils AUTO_ALIAS_UTILS = new AutoAliasUtilsImpl();
+	@Autowired
+	private AutoAliasUtils autoAliasUtils;
 
 	@Override
 	public By getBy(
@@ -21,7 +24,7 @@ public class GetByImpl implements GetBy {
 			final String value,
 			final FeatureState featureState) {
 
-		final String fixedValue = AUTO_ALIAS_UTILS.getValue(value, valueAlias, featureState);
+		final String fixedValue = autoAliasUtils.getValue(value, valueAlias, featureState);
 
 		if (ID.equals(selector)) {
 			return By.id(fixedValue);

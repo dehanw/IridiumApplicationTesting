@@ -13,10 +13,15 @@ import java.util.Map;
 public interface ApplicationUrlLoader {
 
 	/**
+	 * Initialises the config files
+	 */
+	void initialise();
+
+	/**
 	 * @param featureGroup The name of the application, matched to the step "I open the application"
 	 * @return The list of URLs mapped to the application
 	 */
-	List<UrlMapping> getAppUrls(final String featureGroup);
+	List<UrlMapping> getAppUrls(String featureGroup);
 
 	/**
 	 * @return The mapping between data set keys and values for groups of data sets

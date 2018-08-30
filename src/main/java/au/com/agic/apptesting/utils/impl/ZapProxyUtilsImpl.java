@@ -1,22 +1,15 @@
 package au.com.agic.apptesting.utils.impl;
 
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import au.com.agic.apptesting.constants.Constants;
 import au.com.agic.apptesting.exception.ProxyException;
-import au.com.agic.apptesting.utils.FileSystemUtils;
-import au.com.agic.apptesting.utils.LocalProxyUtils;
-import au.com.agic.apptesting.utils.ProxyDetails;
-import au.com.agic.apptesting.utils.ProxySettings;
-import au.com.agic.apptesting.utils.ServerPortUtils;
-import au.com.agic.apptesting.utils.SystemPropertyUtils;
-
+import au.com.agic.apptesting.utils.*;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.zaproxy.clientapi.core.ClientApi;
 import org.zaproxy.zap.ZAP;
 
+import javax.validation.constraints.NotNull;
 import java.io.File;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -25,7 +18,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
-import javax.validation.constraints.NotNull;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * An implementation of the local proxy service
@@ -37,6 +30,7 @@ public class ZapProxyUtilsImpl implements LocalProxyUtils<ClientApi> {
 	private static final SystemPropertyUtils SYSTEM_PROPERTY_UTILS = new SystemPropertyUtilsImpl();
 	private static final ServerPortUtils SERVER_PORT_UTILS = new ServerPortUtilsImpl();
 	private static final FileSystemUtils FILE_SYSTEM_UTILS = new FileSystemUtilsImpl();
+	private static final EnableDisableListUtils ENABLE_DISABLE_LIST_UTILS = new EnableDisableListUtilsImpl();
 
 	private static final int WAIT_FOR_START = 30000;
 
@@ -60,8 +54,16 @@ public class ZapProxyUtilsImpl implements LocalProxyUtils<ClientApi> {
 			final String proxyName =
 				SYSTEM_PROPERTY_UTILS.getProperty(Constants.START_INTERNAL_PROXY);
 
-			if (StringUtils.equalsIgnoreCase(Constants.ZED_ATTACK_PROXY, proxyName)) {
-				return Optional.of(startZAPProxy(globalTempFiles, upstreamProxy));
+			if (StringUtils.isNotBlank(proxyName)) {
+				final boolean enabled = ENABLE_DISABLE_LIST_UTILS.enabled(
+					proxyName,
+					PROXY_NAME,
+					true,
+					false);
+
+				if (enabled) {
+					return Optional.of(startZAPProxy(globalTempFiles, upstreamProxy));
+				}
 			}
 
 			return Optional.empty();

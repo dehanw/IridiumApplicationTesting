@@ -1,19 +1,19 @@
 package au.com.agic.apptesting.utils.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import au.com.agic.apptesting.exception.InvalidInputException;
 import au.com.agic.apptesting.utils.ChronoConverterUtils;
-
 import org.apache.commons.lang3.StringUtils;
-
-import java.time.temporal.ChronoUnit;
+import org.springframework.stereotype.Component;
 
 import javax.validation.constraints.NotNull;
+import java.time.temporal.ChronoUnit;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * An implementation of the chrono converter service
  */
+@Component
 public class ChronoConverterUtilsImpl implements ChronoConverterUtils {
 
 	@Override

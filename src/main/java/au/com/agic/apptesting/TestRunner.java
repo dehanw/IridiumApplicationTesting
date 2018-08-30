@@ -1,61 +1,30 @@
 package au.com.agic.apptesting;
 
-import static au.com.agic.apptesting.constants.Constants.OPEN_REPORT_FILE_SYSTEM_PROPERTY;
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import au.com.agic.apptesting.constants.Constants;
 import au.com.agic.apptesting.exception.FileProfileAccessException;
 import au.com.agic.apptesting.exception.RunScriptsException;
-import au.com.agic.apptesting.utils.ApplicationUrlLoader;
-import au.com.agic.apptesting.utils.CleanupUtils;
-import au.com.agic.apptesting.utils.DesktopInteraction;
-import au.com.agic.apptesting.utils.ExceptionWriter;
-import au.com.agic.apptesting.utils.FeatureLoader;
-import au.com.agic.apptesting.utils.FeatureState;
-import au.com.agic.apptesting.utils.FileSystemUtils;
-import au.com.agic.apptesting.utils.JUnitReportMerge;
-import au.com.agic.apptesting.utils.JarDownloader;
-import au.com.agic.apptesting.utils.LoggingConfiguration;
-import au.com.agic.apptesting.utils.ProxyDetails;
-import au.com.agic.apptesting.utils.ProxyManager;
-import au.com.agic.apptesting.utils.ScreenCapture;
-import au.com.agic.apptesting.utils.SystemPropertyUtils;
-import au.com.agic.apptesting.utils.TagAnalyser;
-import au.com.agic.apptesting.utils.WebDriverHandler;
-import au.com.agic.apptesting.utils.impl.ApplicationUrlLoaderImpl;
-import au.com.agic.apptesting.utils.impl.CleanupUtilsImpl;
-import au.com.agic.apptesting.utils.impl.DesiredCapabilitiesLoaderImpl;
-import au.com.agic.apptesting.utils.impl.DesktopInteractionImpl;
-import au.com.agic.apptesting.utils.impl.ExceptionWriterImpl;
-import au.com.agic.apptesting.utils.impl.FileSystemUtilsImpl;
-import au.com.agic.apptesting.utils.impl.JUnitReportMergeImpl;
-import au.com.agic.apptesting.utils.impl.JarDownloaderImpl;
-import au.com.agic.apptesting.utils.impl.LocalPathFeatureLoaderImpl;
-import au.com.agic.apptesting.utils.impl.LogbackConfiguration;
-import au.com.agic.apptesting.utils.impl.ProxyManagerImpl;
-import au.com.agic.apptesting.utils.impl.ScreenCaptureImpl;
-import au.com.agic.apptesting.utils.impl.SystemPropertyUtilsImpl;
-import au.com.agic.apptesting.utils.impl.TagAnalyserImpl;
-import au.com.agic.apptesting.utils.impl.WebDriverHandlerImpl;
-
+import au.com.agic.apptesting.profiles.configuration.UrlMapping;
+import au.com.agic.apptesting.utils.*;
+import au.com.agic.apptesting.utils.impl.*;
+import io.vavr.control.Try;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.filefilter.TrueFileFilter;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.commons.threadpool.DefaultThreadPool;
-import org.openqa.selenium.remote.DesiredCapabilities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.validation.constraints.NotNull;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicInteger;
 
-import javax.validation.constraints.NotNull;
+import static au.com.agic.apptesting.constants.Constants.OPEN_REPORT_FILE_SYSTEM_PROPERTY;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * Typically Cucumber tests are run as jUnit tests. However, in our configuration we run Cucumber as a standalone
@@ -68,8 +37,9 @@ public class TestRunner {
 	private static final ExceptionWriter EXCEPTION_WRITER = new ExceptionWriterImpl();
 	private static final SystemPropertyUtils SYSTEM_PROPERTY_UTILS = new SystemPropertyUtilsImpl();
 	private static final ApplicationUrlLoader APPLICATION_URL_LOADER = new ApplicationUrlLoaderImpl();
+	private static final DesiredCapabilitiesLoader DESIRED_CAPABILITIES_LOADER  = new DesiredCapabilitiesLoaderImpl();
 	private static final JUnitReportMerge J_UNIT_REPORT_MERGE = new JUnitReportMergeImpl();
-	private static final String MERGED_REPORT = "MergedReport.xml";
+
 	private static final ScreenCapture SCREEN_CAPTURE = new ScreenCaptureImpl();
 	private static final DesktopInteraction DESKTOP_INTERACTION = new DesktopInteractionImpl();
 	private static final FileSystemUtils FILE_SYSTEM_UTILS = new FileSystemUtilsImpl();
@@ -79,10 +49,7 @@ public class TestRunner {
 	private static final ProxyManager PROXY_MANAGER = new ProxyManagerImpl();
 	private static final String HTML_EXTENSION = ".html";
 	private static final CleanupUtils CLEANUP_UTILS = new CleanupUtilsImpl();
-	/**
-	 * Used to name threads that might be reused
-	 */
-	private static final AtomicInteger THREAD_COUNT = new AtomicInteger(0);
+	private static final RemoteTestsUtils REMOTE_TESTS_UTILS = new RemoteTestsUtilsImpl();
 
 	private static final TagAnalyser TAG_ANALYSER = new TagAnalyserImpl();
 
@@ -102,11 +69,23 @@ public class TestRunner {
 	 */
 	private int failure = 0;
 
-	public int run(final List<File> globalTempFiles) {
+	public int run(@NotNull final List<File> globalTempFiles) {
+		checkNotNull(globalTempFiles);
+
 		/*
 		  This is the directory that will hold our reports
 		*/
 		final String reportOutput = FILE_SYSTEM_UTILS.buildReportDirectoryName() + File.separator;
+
+		/*
+			(re)initialise the pojos loaded from config files
+		 */
+		APPLICATION_URL_LOADER.initialise();
+
+		/*
+			(re)initialise the pojos loaded from config files
+		 */
+		DESIRED_CAPABILITIES_LOADER.initialise();
 
 		/*
 			Configure the logging
@@ -132,7 +111,7 @@ public class TestRunner {
 
 			JAR_DOWNLOADER.downloadJar(tempFiles);
 			SYSTEM_PROPERTY_UTILS.copyDependentSystemProperties();
-			WEB_DRIVER_HANDLER.configureWebDriver(tempFiles);
+			WEB_DRIVER_HANDLER.configureWebDriver(globalTempFiles);
 			proxies = PROXY_MANAGER.configureProxies(globalTempFiles, tempFiles);
 			CLEANUP_UTILS.cleanupOldReports();
 			init(reportOutput, tempFiles, proxies);
@@ -141,7 +120,7 @@ public class TestRunner {
 				Now run the tests
 			 */
 			try {
-				runScripts(reportOutput);
+				runScripts(reportOutput, globalTempFiles);
 				mergeReports(reportOutput);
 			} catch (final FileProfileAccessException ex) {
 				LOGGER.error("WEBAPPTESTER-BUG-0003: There was an exception thrown while trying to run"
@@ -164,12 +143,14 @@ public class TestRunner {
 			/*
 				Clean up temp files
 			 */
-			tempFiles.forEach(File::delete);
+			tempFiles.forEach(FileUtils::deleteQuietly);
 
 			/*
 				Gracefully shutdown the proxies
 			 */
-			PROXY_MANAGER.stopProxies(proxies);
+			if (proxies != null) {
+				PROXY_MANAGER.stopProxies(proxies, reportOutput);
+			}
 		}
 
 		return failure;
@@ -185,11 +166,10 @@ public class TestRunner {
 		final String appName =
 			SYSTEM_PROPERTY_UTILS.getProperty(Constants.FEATURE_GROUP_SYSTEM_PROPERTY);
 
-		final List<DesiredCapabilities> desiredCapabilities =
-			new DesiredCapabilitiesLoaderImpl().getCapabilities();
+		State.initialise();
 
-		State.THREAD_DESIRED_CAPABILITY_MAP.initialise(
-			desiredCapabilities,
+		State.getThreadDesiredCapabilityMap().initialise(
+			DESIRED_CAPABILITIES_LOADER.getCapabilities(),
 			APPLICATION_URL_LOADER.getAppUrls(appName),
 			APPLICATION_URL_LOADER.getDatasets(),
 			reportOutput,
@@ -201,11 +181,9 @@ public class TestRunner {
 	 * Spawn threads to run Cucumber scripts, and wait until they are all finished
 	 */
 	@SuppressWarnings("BusyWait")
-	private void runScripts(@NotNull final String reportDirectory) {
+	private void runScripts(@NotNull final String reportDirectory, @NotNull final List<File> globalTempFiles) {
+		checkNotNull(globalTempFiles);
 		checkArgument(StringUtils.isNotBlank(reportDirectory));
-
-		final String groupName = SYSTEM_PROPERTY_UTILS.getProperty(
-			Constants.GROUP_NAME_SYSTEM_PROPERTY);
 
 		final String appName = SYSTEM_PROPERTY_UTILS.getProperty(
 			Constants.FEATURE_GROUP_SYSTEM_PROPERTY);
@@ -221,7 +199,7 @@ public class TestRunner {
 			&& !Constants.PHANTOMJS.equalsIgnoreCase(SYSTEM_PROPERTY_UTILS.getProperty(
 			Constants.TEST_DESTINATION_SYSTEM_PROPERTY));
 
-		String testPath = null;
+		File testPath = null;
 
 		try {
 			/*
@@ -237,14 +215,17 @@ public class TestRunner {
 			final FeatureLoader featureLoader = getFeatureLoader();
 
 			/*
-				Get the file system path that holds the feature scripts
+				Get the file system path that holds the feature scripts. This path
+				is a generated temp dir, and needs to be cleaned up after the test
+				is done.
 			*/
-			testPath = featureLoader.loadFeatures("", appName, groupName);
+			testPath = featureLoader.loadFeatures("", appName);
 
 			/*
 				For each combination of browser and url run a test
 			*/
-			for (int i = 0; i < State.THREAD_DESIRED_CAPABILITY_MAP.getNumberCapabilities(); ++i) {
+			LOGGER.info("Running " + State.getThreadDesiredCapabilityMap().getNumberCapabilities() + " test combinations");
+			for (int i = 0; i < State.getThreadDesiredCapabilityMap().getNumberCapabilities(); ++i) {
 				/*
 					For those first few threads that are execute immediately, add a small offset.
 					Obviously this doesn't have any impact as the thread pool is used up,
@@ -259,13 +240,13 @@ public class TestRunner {
 						Ignore this
 					 */
 				}
-				threadPool.invokeLater(new CucumberThread(reportDirectory, testPath));
+				threadPool.invokeLater(new CucumberThread(reportDirectory, testPath.toString()));
 			}
 
 			/*
 				Wait for the thread to finish
 			*/
-			while (completed != State.THREAD_DESIRED_CAPABILITY_MAP.getNumberCapabilities()) {
+			while (completed != State.getThreadDesiredCapabilityMap().getNumberCapabilities()) {
 				try {
 					Thread.sleep(THREAD_COMPLETE_SLEEP);
 				} catch (final Exception ignored) {
@@ -279,17 +260,13 @@ public class TestRunner {
 				Doh! Some scripts failed, so print a warning
 			*/
 			if (failure != 0) {
-				LOGGER.error("Some of the cucumber tests failed. Check the logs for more details");
+				LOGGER.error("Some of the cucumber tests failed. Check the logs for more details.");
 			}
 
 			LOGGER.info("Report files can be found in {}", reportDirectory);
 		} finally {
-			State.THREAD_DESIRED_CAPABILITY_MAP.shutdown();
-
-			if (testPath != null) {
-				new File(testPath).delete();
-			}
-
+			State.getThreadDesiredCapabilityMap().shutdown();
+			FileUtils.deleteQuietly(testPath);
 			SCREEN_CAPTURE.stop();
 		}
 	}
@@ -307,7 +284,7 @@ public class TestRunner {
 			}
 			final Optional<String> mergedReport = J_UNIT_REPORT_MERGE.mergeReports(reports);
 			if (mergedReport.isPresent()) {
-				FileUtils.write(new File(reportDirectory + MERGED_REPORT), mergedReport.get());
+				FileUtils.write(new File(reportDirectory + Constants.MERGED_REPORT), mergedReport.get());
 			}
 		} catch (final Exception ex) {
 			LOGGER.error("WEBAPPTESTER-BUG-0002: Could not save merged report", ex);
@@ -352,13 +329,13 @@ public class TestRunner {
 					Threads might be reused, so the id is shared, but we can set the name to
 					something new each time.
 				*/
-				Thread.currentThread().setName("CucumberThread" + THREAD_COUNT.incrementAndGet());
+				Thread.currentThread().setName(Constants.THREAD_NAME_PREFIX + Main.THREAD_COUNT.incrementAndGet());
 
 				/*
 					Get the details for this thread
 				*/
 				final FeatureState featureState =
-					State.THREAD_DESIRED_CAPABILITY_MAP.getDesiredCapabilitiesForThread(
+					State.getThreadDesiredCapabilityMap().getDesiredCapabilitiesForThread(
 						Thread.currentThread().getName());
 
 				/*
@@ -366,21 +343,61 @@ public class TestRunner {
 				*/
 				final List<String> args = new ArrayList<>();
 
-				args.add("--monochrome");
-				args.add("--plugin");
-				args.add("json:" + reportDirectory + Thread.currentThread().getName() + ".json");
-				args.add("--plugin");
-				args.add("html:" + reportDirectory + Thread.currentThread().getName() + ".html");
+				args.add("--strict");
+
+				/*
+					HTML report is enabled by default
+				 */
+				if (SYSTEM_PROPERTY_UTILS.getPropertyAsBoolean(Constants.JUNIT_REPORT_FILE, true)) {
+					args.add("--plugin");
+					args.add("junit:" + reportDirectory + Thread.currentThread().getName() + ".xml");
+				}
+
+				/*
+					JUnit report is enabled by default
+				 */
+				if (SYSTEM_PROPERTY_UTILS.getPropertyAsBoolean(Constants.HTML_REPORT_FILE, true)) {
+					args.add("--plugin");
+					args.add("html:" + reportDirectory + Thread.currentThread().getName() + ".html");
+				}
+
+				/*
+					JSON report can be manually enabled
+				 */
+				if (SYSTEM_PROPERTY_UTILS.getPropertyAsBoolean(Constants.JSON_REPORT_FILE, false)) {
+					args.add("--plugin");
+					args.add("json:" + reportDirectory + Thread.currentThread().getName() + ".json");
+				}
+
+				/*
+					Text report can be manually enabled
+				 */
+				if (SYSTEM_PROPERTY_UTILS.getPropertyAsBoolean(Constants.TXT_REPORT_FILE, false)) {
+					args.add("--plugin");
+					args.add("pretty:" + reportDirectory + Thread.currentThread().getName() + ".txt");
+				}
+
 				args.add("--plugin");
 				args.add("pretty");
-				args.add("--plugin");
-				args.add("pretty:" + reportDirectory + Thread.currentThread().getName() + ".txt");
-				args.add("--plugin");
-				args.add("junit:" + reportDirectory + Thread.currentThread().getName() + ".xml");
+
 				args.add("--glue");
 				args.add("au.com.agic.apptesting.steps");
 				args.add("--glue");
 				args.add("au.com.agic.apptestingext.steps");
+
+				/*
+					See if the dry run system property was set
+				 */
+				if (SYSTEM_PROPERTY_UTILS.getPropertyAsBoolean(Constants.DRY_RUN, false)) {
+					args.add("--dry-run");
+				}
+
+				/*
+					Set the monochrome output option
+				 */
+				if (SYSTEM_PROPERTY_UTILS.getPropertyAsBoolean(Constants.MONOCHROME_OUTPUT, true)) {
+					args.add("--monochrome");
+				}
 
 				addTags(args, featureState);
 
@@ -409,19 +426,37 @@ public class TestRunner {
 				LOGGER.error("Failed to run Cucumber test", ex);
 				EXCEPTION_WRITER.saveException(reportDirectory, ex);
 			} finally {
-				++completed;
+				testFinalActions();
+
 				/*
 					Clean up this web driver so we don't hold windows open
 				*/
-				State.THREAD_DESIRED_CAPABILITY_MAP.shutdown(Thread.currentThread().getName());
+				State.getThreadDesiredCapabilityMap().shutdown(Thread.currentThread().getName());
+
+				++completed;
 			}
+		}
+
+		private void testFinalActions() {
+			/*
+				Get the session ID, because this will be null after the state is
+				shutdown in the next l
+			 */
+			REMOTE_TESTS_UTILS.getSessionID()
+				.map(sessionId ->
+					Try.of(() -> State.getFeatureStateForThread().getReportDirectory())
+						.andThenTry(reportDir -> REMOTE_TESTS_UTILS.saveVideoRecording(sessionId, reportDir))
+						.onFailure(ex -> LOGGER.error("WEBAPPTESTER-BUG-0011: Failed to save Browserstack video.", ex)));
 		}
 
 		/**
 		 * Scans the supplied directory for html files, which are then opened
 		 */
 		private void openReportFiles(@NotNull final String reportDir) {
-			if (Boolean.parseBoolean(SYSTEM_PROPERTY_UTILS.getProperty(OPEN_REPORT_FILE_SYSTEM_PROPERTY))) {
+			final boolean htmlReportEnabled = SYSTEM_PROPERTY_UTILS.getPropertyAsBoolean(Constants.HTML_REPORT_FILE, true);
+			final boolean openReportFile = SYSTEM_PROPERTY_UTILS.getPropertyAsBoolean(OPEN_REPORT_FILE_SYSTEM_PROPERTY, false);
+
+			if (htmlReportEnabled && openReportFile) {
 
 				final List<File> files = (List<File>) FileUtils.listFiles(
 					new File(reportDir), TrueFileFilter.INSTANCE, TrueFileFilter.INSTANCE);
@@ -446,7 +481,9 @@ public class TestRunner {
 
 			final String tagSetToUse = StringUtils.isNotBlank(tagOverride)
 				? tagOverride
-				: featureState.getUrlDetails().getTags();
+				: featureState.getUrlDetails()
+					.map(UrlMapping::getTags)
+					.orElse("");
 
 			final List<String> tags = TAG_ANALYSER.convertTagsToList(tagSetToUse);
 

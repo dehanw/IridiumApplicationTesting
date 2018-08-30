@@ -1,23 +1,18 @@
 package au.com.agic.apptesting.steps;
 
 import au.com.agic.apptesting.State;
-import au.com.agic.apptesting.utils.FeatureState;
+import au.com.agic.apptesting.constants.Constants;
+import au.com.agic.apptesting.exception.WebElementException;
+import au.com.agic.apptesting.utils.BrowserInteropUtils;
 import au.com.agic.apptesting.utils.GetBy;
 import au.com.agic.apptesting.utils.SimpleWebElementInteraction;
 import au.com.agic.apptesting.utils.SleepUtils;
-import au.com.agic.apptesting.utils.impl.GetByImpl;
-import au.com.agic.apptesting.utils.impl.SimpleWebElementInteractionImpl;
-import au.com.agic.apptesting.utils.impl.SleepUtilsImpl;
-
-import org.apache.commons.lang3.StringUtils;
-import org.openqa.selenium.By;
-import org.openqa.selenium.JavascriptExecutor;
-import org.openqa.selenium.NoSuchElementException;
-import org.openqa.selenium.TimeoutException;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.WebElement;
-
+import au.com.agic.apptesting.utils.impl.MouseMovementUtilsImpl;
 import cucumber.api.java.en.When;
+import org.apache.commons.lang3.StringUtils;
+import org.openqa.selenium.*;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 /**
  * Gherkin steps used to focus elements
@@ -25,18 +20,23 @@ import cucumber.api.java.en.When;
  * These steps have Atom snipptets that start with the prefix "focus".
  * See https://github.com/mcasperson/iridium-snippets for more details.
  */
+@Component
 public class FocusStepDefinitions {
 
-	private static final SleepUtils SLEEP_UTILS = new SleepUtilsImpl();
-	private static final GetBy GET_BY = new GetByImpl();
-	private static final SimpleWebElementInteraction SIMPLE_WEB_ELEMENT_INTERACTION =
-		new SimpleWebElementInteractionImpl();
+	@Autowired
+	private SleepUtils sleepUtils;
 
-	/**
-	 * Get the web driver for this thread
-	 */
-	private final FeatureState featureState =
-		State.THREAD_DESIRED_CAPABILITY_MAP.getDesiredCapabilitiesForThread();
+	@Autowired
+	private GetBy getBy;
+
+	@Autowired
+	private SimpleWebElementInteraction simpleWebElementInteraction;
+
+	@Autowired
+	private BrowserInteropUtils browserInteropUtils;
+
+	@Autowired
+	private MouseMovementUtilsImpl mouseMovementUtils;
 
 	/**
 	 * Focuses on an element. <p> Often with text fields that have some kind of mask you need to first focus
@@ -49,23 +49,29 @@ public class FocusStepDefinitions {
 	 * @param exists        If this text is set, an error that would be thrown because the element was not
 	 *                      found is ignored. Essentially setting this text makes this an optional statement.
 	 */
-	@When("^I focus(?: on)? (?:a|an|the) element found by( alias)? "
-		+ "\"([^\"]*)\"( if it exists)?$")
+	@When("^I focus(?: on)? (?:a|an|the)(?: element found by)?( alias)? "
+		+ "\"([^\"]*)\"(?: \\w+)*?( if it exists)?$")
 	public void focusElementStep(
 		final String alias,
 		final String selectorValue,
 		final String exists) {
 		try {
-			final WebElement element = SIMPLE_WEB_ELEMENT_INTERACTION.getPresenceElementFoundBy(
+			final WebElement element = simpleWebElementInteraction.getPresenceElementFoundBy(
 				StringUtils.isNotBlank(alias),
 				selectorValue,
-				featureState);
+				State.getFeatureStateForThread());
 
-			final WebDriver webDriver = State.THREAD_DESIRED_CAPABILITY_MAP.getWebDriverForThread();
-			final JavascriptExecutor js = (JavascriptExecutor) webDriver;
-			js.executeScript("arguments[0].focus();", element);
-			SLEEP_UTILS.sleep(featureState.getDefaultSleep());
-		} catch (final TimeoutException | NoSuchElementException ex) {
+			final WebDriver webDriver = State.getThreadDesiredCapabilityMap().getWebDriverForThread();
+
+			mouseMovementUtils.mouseGlide(
+				(JavascriptExecutor) webDriver,
+				element,
+				Constants.MOUSE_MOVE_TIME,
+				Constants.MOUSE_MOVE_STEPS);
+
+			browserInteropUtils.focusOnElement(webDriver, element);
+			sleepUtils.sleep(State.getFeatureStateForThread().getDefaultSleep());
+		} catch (final WebElementException ex) {
 			if (StringUtils.isBlank(exists)) {
 				throw ex;
 			}
@@ -92,16 +98,22 @@ public class FocusStepDefinitions {
 		final String selectorValue,
 		final String exists) {
 		try {
-			final By by = GET_BY.getBy(
+			final By by = getBy.getBy(
 				selector,
 				StringUtils.isNotBlank(alias),
 				selectorValue,
-				featureState);
-			final WebDriver webDriver = State.THREAD_DESIRED_CAPABILITY_MAP.getWebDriverForThread();
+				State.getFeatureStateForThread());
+			final WebDriver webDriver = State.getThreadDesiredCapabilityMap().getWebDriverForThread();
 			final WebElement element = webDriver.findElement(by);
-			final JavascriptExecutor js = (JavascriptExecutor) webDriver;
-			js.executeScript("arguments[0].focus();", element);
-			SLEEP_UTILS.sleep(featureState.getDefaultSleep());
+
+			mouseMovementUtils.mouseGlide(
+				(JavascriptExecutor) webDriver,
+				element,
+				Constants.MOUSE_MOVE_TIME,
+				Constants.MOUSE_MOVE_STEPS);
+
+			browserInteropUtils.focusOnElement(webDriver, element);
+			sleepUtils.sleep(State.getFeatureStateForThread().getDefaultSleep());
 		} catch (final TimeoutException | NoSuchElementException ex) {
 			if (StringUtils.isBlank(exists)) {
 				throw ex;

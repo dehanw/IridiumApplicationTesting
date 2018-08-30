@@ -1,16 +1,17 @@
 package au.com.agic.apptesting.utils.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
+import au.com.agic.apptesting.constants.Constants;
 import au.com.agic.apptesting.exception.FileProfileAccessException;
 import au.com.agic.apptesting.exception.RemoteFeatureException;
 import au.com.agic.apptesting.utils.FeatureFileUtils;
 import au.com.agic.apptesting.utils.FeatureReader;
-
+import io.vavr.control.Try;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.springframework.retry.policy.SimpleRetryPolicy;
+import org.springframework.retry.support.RetryTemplate;
 
+import javax.validation.constraints.NotNull;
 import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.IOException;
@@ -22,9 +23,8 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import javax.validation.constraints.NotNull;
-
-import javaslang.control.Try;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * An implementation of the feature files utils service
@@ -64,7 +64,7 @@ public class FeatureFileUtilsImpl implements FeatureFileUtils {
 
 			}
 
-			if (Files.isRegularFile(Paths.get(fixedPath))) {
+			if (Files.isRegularFile(Paths.get(fixedPath)) || Files.isRegularFile(Paths.get("./" + fixedPath))) {
 				/*
 					We know this is a single file, so just return it. Note that we
 					ignore the supplied feature group when we are looking at
@@ -94,11 +94,24 @@ public class FeatureFileUtilsImpl implements FeatureFileUtils {
 	}
 
 	private List<File> processRemoteUrl(@NotNull final String path) throws IOException {
+		final File copy = File.createTempFile("webapptester", ".feature");
+
 		try {
-			final File copy = File.createTempFile("webapptester", ".feature");
-			FileUtils.copyURLToFile(new URL(path), copy);
+			final RetryTemplate template = new RetryTemplate();
+			final SimpleRetryPolicy policy = new SimpleRetryPolicy();
+			policy.setMaxAttempts(Constants.URL_COPY_RETRIES);
+			template.setRetryPolicy(policy);
+			template.execute(context -> {
+				FileUtils.copyURLToFile(new URL(path), copy);
+				return null;
+			});
+
 			return Arrays.asList(copy);
 		} catch (final FileNotFoundException ex) {
+			/*
+				Don't leave an empty file hanging around
+			 */
+			FileUtils.deleteQuietly(copy);
 			throw new RemoteFeatureException("The remote file could not be downloaded."
 				+ " Either the URL was invalid, or the path was actually supposed to reference a"
 				+ " local file but that file could not be found an so was assumed to be a URL.",  ex);
@@ -117,17 +130,21 @@ public class FeatureFileUtilsImpl implements FeatureFileUtils {
 		@NotNull final List<String> processed) {
 		checkNotNull(directory);
 		checkNotNull(features);
+		checkNotNull(processed);
 
 		if (!processed.contains(directory.toString())) {
 			processed.add(directory.toString());
 			if (directory.isDirectory()) {
 				final File[] files = directory.listFiles();
-				for (final File file : files) {
-					if (file.isDirectory()) {
-						loopOverFiles(file, features, processed);
-					} else {
-						if (file.getName().endsWith(FEATURE_EXT)) {
-							features.add(file);
+
+				if (files != null) {
+					for (final File file : files) {
+						if (file.isDirectory()) {
+							loopOverFiles(file, features, processed);
+						} else {
+							if (file.getName().endsWith(FEATURE_EXT)) {
+								features.add(file);
+							}
 						}
 					}
 				}

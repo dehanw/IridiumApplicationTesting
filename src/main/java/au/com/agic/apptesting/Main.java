@@ -3,7 +3,8 @@ package au.com.agic.apptesting;
 import au.com.agic.apptesting.constants.Constants;
 import au.com.agic.apptesting.utils.SystemPropertyUtils;
 import au.com.agic.apptesting.utils.impl.SystemPropertyUtilsImpl;
-
+import io.vavr.control.Try;
+import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.math.NumberUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -11,16 +12,45 @@ import org.slf4j.LoggerFactory;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
+
+import static com.google.common.base.Preconditions.checkState;
 
 public final class Main {
 
 	private static final Logger LOGGER = LoggerFactory.getLogger(Main.class);
 	private static final SystemPropertyUtils SYSTEM_PROPERTY_UTILS = new SystemPropertyUtilsImpl();
+	private static final int MAX_EXECUTION_TIME_CODE = -2;
+	/**
+	 * Used to name threads that might be reused
+	 */
+	public static final AtomicInteger THREAD_COUNT = new AtomicInteger(0);
+	private static ScheduledExecutorService terminator;
+	private static Future<?> terminatorFuture;
 
 	private Main() {
 	}
 
 	public static void main(final String... args) {
+		try {
+			System.exit(run());
+		} catch (final Exception ex) {
+			LOGGER.error(
+				"WEBAPPTESTER-BUG-0007: "
+				+ "An exception was raised while attempting to run the Cucumber test scripts", ex);
+			System.exit(-1);
+		}
+	}
+
+	/**
+	 * Run the test script
+	 * @return The number of failures returned by the test script
+	 */
+	public static int run() {
 		final List<File> globalTempFiles = new ArrayList<>();
 
 		try {
@@ -29,12 +59,22 @@ public final class Main {
 			 */
 			System.setSecurityManager(null);
 
+			createShutdownTimer();
+
 			/*
 			 	Get the retry count
 			 */
 			final int retryCount = NumberUtils.toInt(
 				SYSTEM_PROPERTY_UTILS.getProperty(Constants.TEST_RETRY_COUNT),
 				1
+			);
+
+			/*
+				Get the delay between retries
+			 */
+			final int retryDelay = NumberUtils.toInt(
+				SYSTEM_PROPERTY_UTILS.getProperty(Constants.DELAY_BETWEEN_RETRY),
+				0
 			);
 
 			/*
@@ -55,21 +95,55 @@ public final class Main {
 				if (lastFailures == 0) {
 					break;
 				}
+
+				Try.run(() -> Thread.sleep(retryDelay * Constants.MILLISECONDS_PER_SECOND));
 			}
 
-			System.exit(lastFailures);
-		} catch (final Exception ex) {
-			LOGGER.error(
-				"WEBAPPTESTER-BUG-0007: "
-				+ "An exception was raised while attempting to run the Cucumber test scripts", ex);
-			System.exit(-1);
+			return lastFailures;
 		} finally {
-			try {
-				globalTempFiles.forEach(File::delete);
-			} catch (final Exception ex) {
-				LOGGER.error(
-					"WEBAPPTESTER-BUG-0008: Failed to remove global temp file", ex);
-			}
+			THREAD_COUNT.set(0);
+			globalTempFiles.forEach(FileUtils::deleteQuietly);
+			cancelShutdownTimer();
+		}
+	}
+
+	private static void cancelShutdownTimer() {
+		if (terminatorFuture != null) {
+			terminatorFuture.cancel(false);
+		}
+
+		if (terminator != null) {
+			terminator.shutdown();
+		}
+
+		terminatorFuture = null;
+		terminator = null;
+	}
+
+	/**
+	 * Creates a thread that will shutdown the application after a certain amount of time has passed.
+	 */
+	private static void createShutdownTimer() {
+		checkState(terminatorFuture == null);
+		checkState(terminator == null);
+
+		final int maxExecutionTime = NumberUtils.toInt(
+			SYSTEM_PROPERTY_UTILS.getProperty(Constants.MAX_EXECUTION_TIME)
+		);
+
+		if (maxExecutionTime > 0) {
+			terminator = Executors.newSingleThreadScheduledExecutor();
+			terminatorFuture = terminator.schedule(() -> {
+				try {
+					LOGGER.error(
+						"WEBAPPTESTER-INFO-0011: "
+							+ "Iridium was shut down because it ran longer than the maximum execution time of " + maxExecutionTime + " seconds");
+					System.exit(MAX_EXECUTION_TIME_CODE);
+				} catch (final Exception ex) {
+					LOGGER.error(
+						"WEBAPPTESTER-BUG-0009: The shutdown timer threw an exception", ex);
+				}
+			}, maxExecutionTime, TimeUnit.SECONDS);
 		}
 	}
 }

@@ -1,33 +1,17 @@
 package au.com.agic.apptesting.steps;
 
-import au.com.agic.apptesting.State;
-import au.com.agic.apptesting.utils.FeatureState;
-
-import org.apache.commons.lang3.StringUtils;
-import org.openqa.selenium.Alert;
-import org.openqa.selenium.NoSuchElementException;
-import org.openqa.selenium.TimeoutException;
-import org.openqa.selenium.WebDriver;
-import org.openqa.selenium.security.UserAndPassword;
-import org.openqa.selenium.support.ui.ExpectedConditions;
-import org.openqa.selenium.support.ui.WebDriverWait;
-
 import cucumber.api.java.en.When;
+import org.apache.commons.lang3.NotImplementedException;
+import org.springframework.stereotype.Component;
 
 /**
  * Step defininitions for logging into a web page
  */
+@Component
 public class LoginStepDefinitions {
 
 	/**
-	 * Get the web driver for this thread
-	 */
-	private final FeatureState featureState =
-		State.THREAD_DESIRED_CAPABILITY_MAP.getDesiredCapabilitiesForThread();
-
-	/**
-	 * This code is supposed to populate the login dialog, but it actually doesn't work with most modern
-	 * browsers.
+	 * Authentication was removed in selenium 3.8.0
 	 *
 	 * @param username The username
 	 * @param password The password
@@ -36,15 +20,6 @@ public class LoginStepDefinitions {
 	 */
 	@When("I log in with username \"([^\"]*)\" and password \"([^\"]*)\"( if it exists)?$")
 	public void login(final String username, final String password, final String exists) {
-		try {
-			final WebDriver webDriver = State.THREAD_DESIRED_CAPABILITY_MAP.getWebDriverForThread();
-			final WebDriverWait wait = new WebDriverWait(webDriver, featureState.getDefaultWait());
-			final Alert alert = wait.until(ExpectedConditions.alertIsPresent());
-			alert.authenticateUsing(new UserAndPassword(username, password));
-		} catch (final TimeoutException | NoSuchElementException ex) {
-			if (StringUtils.isBlank(exists)) {
-				throw ex;
-			}
-		}
+		throw new NotImplementedException("Authentication was removed in Selenium 3.8.0");
 	}
 }

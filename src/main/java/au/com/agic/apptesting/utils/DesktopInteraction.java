@@ -1,5 +1,6 @@
 package au.com.agic.apptesting.utils;
 
+import javax.validation.constraints.NotNull;
 import java.net.URI;
 
 /**
@@ -12,5 +13,5 @@ public interface DesktopInteraction {
 	 *
 	 * @param uri The address of the web page to open
 	 */
-	void openWebpage(final URI uri);
+	void openWebpage(@NotNull URI uri);
 }

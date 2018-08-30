@@ -1,17 +1,10 @@
 package au.com.agic.apptesting.utils.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import au.com.agic.apptesting.constants.Constants;
 import au.com.agic.apptesting.exception.ConfigurationException;
+import au.com.agic.apptesting.exception.DriverException;
 import au.com.agic.apptesting.profiles.configuration.UrlMapping;
-import au.com.agic.apptesting.utils.FeatureState;
-import au.com.agic.apptesting.utils.ProxyDetails;
-import au.com.agic.apptesting.utils.SystemPropertyUtils;
-import au.com.agic.apptesting.utils.ThreadWebDriverMap;
-import au.com.agic.apptesting.utils.WebDriverFactory;
-
+import au.com.agic.apptesting.utils.*;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.openqa.selenium.WebDriver;
@@ -19,15 +12,15 @@ import org.openqa.selenium.remote.DesiredCapabilities;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.validation.constraints.NotNull;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import javax.validation.constraints.NotNull;
-
-import javaslang.control.Try;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * A service that generates local web driver instances to test on the local pc. Assumes that Chrome
@@ -109,32 +102,30 @@ public class LocalThreadWebDriverMapImpl implements ThreadWebDriverMap {
 		proxies = new ArrayList<>(myProxies);
 	}
 
+	@NotNull
 	@Override
 	public synchronized FeatureState getDesiredCapabilitiesForThread(@NotNull final String name) {
+		checkArgument(StringUtils.isNotBlank(name));
+		checkArgument(name.startsWith(Constants.THREAD_NAME_PREFIX));
+
 		if (threadIdToCapMap.containsKey(name)) {
 			return threadIdToCapMap.get(name);
 		}
 
 		/*
-		  Some validation checking
-		*/
-		if (originalApplicationUrls.isEmpty()) {
-			throw new ConfigurationException(
-				"There are no configurations available. "
-				+ "Check configuration profiles have the required information in them");
-		}
-
-		/*
 		  We have allocated our available configurations
 		*/
-		if (currentUrl >= originalApplicationUrls.size()) {
-			throw new ConfigurationException("Configuration pool has been exhausted!");
+		final int urlCount = Math.max(originalApplicationUrls.size(), 1);
+		if (currentUrl >= urlCount) {
+			throw new ConfigurationException("Configuration pool has been exhausted! "
+				+ currentUrl + " is greater than or equal to " + urlCount);
 		}
 
 		/*
 		  Get the details that the requesting thread will need
 		*/
-		final UrlMapping url = originalApplicationUrls.get(currentUrl);
+		final UrlMapping url = originalApplicationUrls.isEmpty()
+			? null : originalApplicationUrls.get(currentUrl);
 
 		final Map<String, String> dataSet = originalDataSets.containsKey(currentDataset)
 			? new HashMap<>(originalDataSets.get(currentDataset))
@@ -161,6 +152,7 @@ public class LocalThreadWebDriverMapImpl implements ThreadWebDriverMap {
 		return featureState;
 	}
 
+	@NotNull
 	@Override
 	public synchronized WebDriver getWebDriverForThread(@NotNull final String name, final boolean createIfMissing) {
 		checkArgument(StringUtils.isNotEmpty(name));
@@ -171,13 +163,13 @@ public class LocalThreadWebDriverMapImpl implements ThreadWebDriverMap {
 
 		if (createIfMissing) {
 			LOGGER.info("WEBAPPTESTER-INFO-0006: Creating WebDriver");
-			final WebDriver webDriver = WEB_DRIVER_FACTORY.createWebDriver(proxies);
+			final WebDriver webDriver = WEB_DRIVER_FACTORY.createWebDriver(proxies, tempFolders);
 			threadIdToDriverMap.put(name, webDriver);
 
 			return webDriver;
 		}
 
-		return null;
+		throw new DriverException("Could not find or create web driver");
 	}
 
 	@Override
@@ -195,10 +187,7 @@ public class LocalThreadWebDriverMapImpl implements ThreadWebDriverMap {
 
 	@Override
 	public synchronized int getNumberCapabilities() {
-		if (originalApplicationUrls.isEmpty()) {
-			throw new ConfigurationException("No application URL specified");
-		}
-		return originalApplicationUrls.size() * Math.max(getMaxDataSets(), 1);
+		return Math.max(originalApplicationUrls.size(), 1) * Math.max(getMaxDataSets(), 1);
 	}
 
 	@Override
@@ -245,9 +234,9 @@ public class LocalThreadWebDriverMapImpl implements ThreadWebDriverMap {
 		threadIdToCapMap.clear();
 
 		/*
-			Attemp to delete all the temp folders
+			Attempt to delete all the temp folders
 		 */
-		getTempFolders().forEach(e -> Try.run(() -> FileUtils.deleteDirectory(e)));
+		getTempFolders().forEach(FileUtils::deleteQuietly);
 
         /*
             Reset the list of available configurations

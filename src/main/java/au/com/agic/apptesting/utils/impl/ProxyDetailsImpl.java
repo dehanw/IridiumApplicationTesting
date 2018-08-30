@@ -1,24 +1,22 @@
 package au.com.agic.apptesting.utils.impl;
 
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import au.com.agic.apptesting.utils.ProxyDetails;
-
 import org.apache.commons.lang3.StringUtils;
 
+import javax.validation.constraints.NotNull;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
-import javax.validation.constraints.NotNull;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * An data object that holds proxy details
  */
 public class ProxyDetailsImpl<T> implements ProxyDetails<T> {
 
-	private final boolean mainProxy;
+	private boolean mainProxy;
 	private final int port;
 	private final Optional<T> interfaceObject;
 	private final String name;
@@ -78,6 +76,7 @@ public class ProxyDetailsImpl<T> implements ProxyDetails<T> {
 		return interfaceObject;
 	}
 
+	@NotNull
 	@Override
 	public Map<String, Object> getProperties() {
 		return new HashMap<>(properties);
@@ -94,5 +93,10 @@ public class ProxyDetailsImpl<T> implements ProxyDetails<T> {
 	@Override
 	public boolean isMainProxy() {
 		return mainProxy;
+	}
+
+	@Override
+	public void setMainProxy(final boolean mainProxy) {
+		this.mainProxy = mainProxy;
 	}
 }

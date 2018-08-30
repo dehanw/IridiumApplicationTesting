@@ -41,6 +41,7 @@
 /CucumberThread*.txt
 /CucumberThread*.json
 /*.png
+!browserstack.png
 /MergedReport.xml
 /CucumberThread*.html
 /CucumberThread*.zap
@@ -51,5 +52,5 @@
 **/.DS_Store
 log.txt
 exception.txt
-*.png
 *.har
+*.mp4

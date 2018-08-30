@@ -1,40 +1,32 @@
 package au.com.agic.apptesting.utils.impl;
 
-import static au.com.agic.apptesting.utils.JarDownloader.LOCAL_JAR_FILE_SYSTEM_PROPERTY;
-import static com.google.common.base.Preconditions.checkArgument;
-import static com.google.common.base.Preconditions.checkNotNull;
-
 import au.com.agic.apptesting.constants.Constants;
 import au.com.agic.apptesting.utils.FileSystemUtils;
 import au.com.agic.apptesting.utils.SystemPropertyUtils;
-
+import io.vavr.control.Try;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.client.utils.URIBuilder;
+import org.springframework.stereotype.Component;
 
+import javax.validation.constraints.NotNull;
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
-import java.nio.file.FileSystem;
-import java.nio.file.FileSystems;
-import java.nio.file.FileVisitResult;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.SimpleFileVisitor;
-import java.nio.file.StandardCopyOption;
+import java.nio.file.*;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.text.SimpleDateFormat;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Map;
 
-import javax.validation.constraints.NotNull;
-
-import javaslang.control.Try;
+import static au.com.agic.apptesting.utils.JarDownloader.LOCAL_JAR_FILE_SYSTEM_PROPERTY;
+import static com.google.common.base.Preconditions.checkArgument;
+import static com.google.common.base.Preconditions.checkNotNull;
 
 /**
  * An implementation of the FileSystemsUtils service
  */
+@Component
 public class FileSystemUtilsImpl implements FileSystemUtils {
 
 	private static final String REPORT_DIR = "WebAppTestingReports";
@@ -43,6 +35,11 @@ public class FileSystemUtilsImpl implements FileSystemUtils {
 
 	@Override
 	public String buildReportDirectoryName() {
+		final String customDir = SYSTEM_PROPERTY_UTILS.getProperty(Constants.REPORTS_DIRECTORY);
+		if (StringUtils.isNotBlank(customDir)) {
+			return customDir;
+		}
+
 		/*
 			Return the local directory if we are not saving in the users home folder
 		 */
@@ -150,10 +147,10 @@ public class FileSystemUtilsImpl implements FileSystemUtils {
 				/*
 					If we get here, it means that we are running from a web start jar,
 					which looks like:
-					jar:https://s3-ap-southeast-2.amazonaws.com/ag-iridium/IridiumApplicationTesting.jar!/zap
+					jar:https://s3.amazonaws.com/iridium-release/IridiumApplicationTesting.jar!/zap
 
 					getSchemeSpecificPart() will return:
-					https://s3-ap-southeast-2.amazonaws.com/ag-iridium/IridiumApplicationTesting.jar!/zap
+					https://s3.amazonaws.com/iridium-release/IridiumApplicationTesting.jar!/zap
 				 */
 				final URI newUri = URI.create(resPath.getSchemeSpecificPart());
 
@@ -172,8 +169,9 @@ public class FileSystemUtilsImpl implements FileSystemUtils {
 					.build();
 
 				final Map<String, ?> env = Collections.emptyMap();
-				final FileSystem fs = FileSystems.newFileSystem(newResPath, env);
-				return new PathReference(fs.provider().getPath(newResPath), fs);
+				try (final FileSystem fs = FileSystems.newFileSystem(newResPath, env)) {
+					return new PathReference(fs.provider().getPath(newResPath), fs);
+				}
 			}))
 			.getOrElseThrow(x -> new IOException("Could not process the URI " + resPath, x));
 	}

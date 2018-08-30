@@ -1,14 +1,14 @@
 package au.com.agic.apptesting.steps;
 
 import au.com.agic.apptesting.State;
-import au.com.agic.apptesting.utils.FeatureState;
+import au.com.agic.apptesting.utils.AutoAliasUtils;
 import au.com.agic.apptesting.utils.SleepUtils;
-import au.com.agic.apptesting.utils.impl.SleepUtilsImpl;
-
-import org.apache.commons.lang3.StringUtils;
-import org.openqa.selenium.WebDriver;
-
 import cucumber.api.java.en.When;
+import org.apache.commons.lang3.StringUtils;
+import org.openqa.selenium.JavascriptExecutor;
+import org.openqa.selenium.WebDriver;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 /**
  * Gherkin steps for navigating in the browser.
@@ -16,15 +16,13 @@ import cucumber.api.java.en.When;
  * These steps have Atom snipptets that start with the prefix "go".
  * See https://github.com/mcasperson/iridium-snippets for more details.
  */
+@Component
 public class NavigationStepDefinitions {
 
-	private static final SleepUtils SLEEP_UTILS = new SleepUtilsImpl();
-
-	/**
-	 * Get the web driver for this thread
-	 */
-	private final FeatureState featureState =
-		State.THREAD_DESIRED_CAPABILITY_MAP.getDesiredCapabilitiesForThread();
+	@Autowired
+	private SleepUtils sleepUtils;
+	@Autowired
+	private AutoAliasUtils autoAliasUtils;
 
 	/**
 	 * Go back
@@ -33,9 +31,9 @@ public class NavigationStepDefinitions {
 	@When("I go back( ignoring errors)?")
 	public void goBack(final String ignoreErrors) {
 		try {
-			final WebDriver webDriver = State.THREAD_DESIRED_CAPABILITY_MAP.getWebDriverForThread();
+			final WebDriver webDriver = State.getThreadDesiredCapabilityMap().getWebDriverForThread();
 			webDriver.navigate().back();
-			SLEEP_UTILS.sleep(featureState.getDefaultSleep());
+			sleepUtils.sleep(State.getFeatureStateForThread().getDefaultSleep());
 		} catch (final Exception ex) {
 			/*
 				Safari doesn't support navigation:
@@ -55,9 +53,9 @@ public class NavigationStepDefinitions {
 	@When("I go forward( ignoring errors)?")
 	public void goForward(final String ignoreErrors) {
 		try {
-			final WebDriver webDriver = State.THREAD_DESIRED_CAPABILITY_MAP.getWebDriverForThread();
+			final WebDriver webDriver = State.getThreadDesiredCapabilityMap().getWebDriverForThread();
 			webDriver.navigate().forward();
-			SLEEP_UTILS.sleep(featureState.getDefaultSleep());
+			sleepUtils.sleep(State.getFeatureStateForThread().getDefaultSleep());
 		} catch (final Exception ex) {
 			/*
 				Safari doesn't support navigation:
@@ -77,9 +75,9 @@ public class NavigationStepDefinitions {
 	@When("I refresh the page( ignoring errors)?")
 	public void refresh(final String ignoreErrors) {
 		try {
-			final WebDriver webDriver = State.THREAD_DESIRED_CAPABILITY_MAP.getWebDriverForThread();
+			final WebDriver webDriver = State.getThreadDesiredCapabilityMap().getWebDriverForThread();
 			webDriver.navigate().refresh();
-			SLEEP_UTILS.sleep(featureState.getDefaultSleep());
+			sleepUtils.sleep(State.getFeatureStateForThread().getDefaultSleep());
 		} catch (final Exception ex) {
 			/*
 				Safari doesn't support navigation:
@@ -90,5 +88,20 @@ public class NavigationStepDefinitions {
 				throw ex;
 			}
 		}
+	}
+
+	/**
+	 * Updates the location with the given hash. This is useful for manually navigating
+	 * around a single page application.
+	 * @param alias Add this word to indicate that the hash comes from an alias
+	 * @param hash The name of the hash
+	 */
+	@When("I go to the hash location( alias)? \"(.*?)\"")
+	public void openHash(final String alias, final String hash) {
+		final String hashValue = autoAliasUtils.getValue(hash, StringUtils.isNotBlank(alias), State.getFeatureStateForThread());
+
+		final WebDriver webDriver = State.getThreadDesiredCapabilityMap().getWebDriverForThread();
+		((JavascriptExecutor) webDriver).executeScript("window.location.hash='#" + hashValue + "'");
+		sleepUtils.sleep(State.getFeatureStateForThread().getDefaultSleep());
 	}
 }

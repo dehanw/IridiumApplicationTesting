@@ -1,9 +1,8 @@
 package au.com.agic.apptesting.utils;
 
+import javax.validation.constraints.NotNull;
 import java.io.File;
 import java.util.List;
-
-import javax.validation.constraints.NotNull;
 
 /**
  * When a JAR is run from WebStart, you don't get to know the local filename of the JAR. This is a problem for
@@ -30,5 +29,5 @@ public interface JarDownloader {
 	 * ZAP and Cucumber can inspect it.
 	 * @param tempFiles A list of temporary files to be cleaned up when the app finishes
 	 */
-	void downloadJar(@NotNull final List<File> tempFiles);
+	void downloadJar(@NotNull List<File> tempFiles);
 }

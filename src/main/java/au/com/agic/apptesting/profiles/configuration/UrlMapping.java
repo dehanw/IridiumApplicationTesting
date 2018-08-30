@@ -1,18 +1,16 @@
 package au.com.agic.apptesting.profiles.configuration;
 
-import static com.google.common.base.Preconditions.checkArgument;
-
 import au.com.agic.apptesting.constants.Defaults;
-
 import org.apache.commons.lang3.StringUtils;
-
-import java.util.ArrayList;
-import java.util.List;
 
 import javax.validation.constraints.NotNull;
 import javax.xml.bind.annotation.XmlAttribute;
 import javax.xml.bind.annotation.XmlElement;
 import javax.xml.bind.annotation.XmlTransient;
+import java.util.ArrayList;
+import java.util.List;
+
+import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * Represents a {@code <urlMapping>} element
@@ -26,10 +24,32 @@ public class UrlMapping {
 
 	}
 
+	/**
+	 *
+	 * @param url A single URL representing the default application URL
+	 */
 	public UrlMapping(@NotNull final String url) {
 		urls = new ArrayList<>();
 		final Url urlEntity = new Url(url, Defaults.DEFAULT_URL_NAME);
 		urls.add(urlEntity);
+	}
+
+	/**
+	 *
+	 * @param urls A collection of URLs
+	 */
+	public UrlMapping(@NotNull final List<Url> urls) {
+		this.urls = new ArrayList<>(urls);
+	}
+
+	/**
+	 *
+	 * @param urls A collection of URLS
+	 * @param tags The tags to use with the URLs
+	 */
+	public UrlMapping(@NotNull final List<Url> urls, @NotNull final String tags) {
+		this.urls = new ArrayList<>(urls);
+		this.tags = tags;
 	}
 
 	@XmlAttribute

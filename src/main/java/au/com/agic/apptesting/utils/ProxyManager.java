@@ -1,9 +1,8 @@
 package au.com.agic.apptesting.utils;
 
+import javax.validation.constraints.NotNull;
 import java.io.File;
 import java.util.List;
-
-import javax.validation.constraints.NotNull;
 
 /**
  * A service that is used to create and configure the proxies reqyired to run a test
@@ -19,12 +18,13 @@ public interface ProxyManager {
 	 * @return A list of proxies created
 	 */
 	List<ProxyDetails<?>> configureProxies(
-		@NotNull final List<File> globalTempFiles,
-		@NotNull final List<File> tempFiles);
+		@NotNull List<File> globalTempFiles,
+		@NotNull List<File> tempFiles);
 
 	/**
 	 * Gracefully shutdown proxies before we exit the app
 	 * @param proxies The list of proxies that were created for this test
+	 * @param reportOutput The directory holding report output
 	 */
-	void stopProxies(@NotNull final List<ProxyDetails<?>> proxies);
+	void stopProxies(@NotNull List<ProxyDetails<?>> proxies, final String reportOutput);
 }

@@ -8,14 +8,15 @@ Feature: Open an application
 
  	# Open up the web page
   	Scenario: Launch App
-		And I set the default wait time between steps to "5"
+		And I set the default wait time between steps to "0.2"
+		And I set the default wait for elements to be available to "30" seconds
 		# Allow all traffic to the main domain
 		And I enable the whitelist with responding with "500" for unmatched requests
 		And I allow access to the URL regex ".*?dzone.*"
    		# Speed up tests by blocking thumbnails
 		And I block access to the URL regex ".*?thumbnail.*" with response "500"
 		And I open the application
-		And I maximise the window
+		And I set the window size to "1600x1200"
 
 	Scenario: Navigate the main links
 		And I click the link with the text content of "REFCARDZ"
@@ -32,16 +33,3 @@ Feature: Open an application
 		And I click the link with the text content of "MOBILE"
 		And I click the link with the text content of "PERFORMANCE"
 		And I click the link with the text content of "WEB DEV"
-
-	Scenario: Open some refcardz
-		And I click the element found by alias "HomeLink"
-	  # WebDriver considers this link to be obscured by another element, so
-	  # we use a special step to click these "hidden" links
-		And I wait "30" seconds for the element found by "Learn Microservices in Java" to be displayed
-		And I click the hidden link with the text content of "Learn Microservices in Java"
-		And I wait "30" seconds for the element found by alias "HomeLink" to be displayed
-		And I go back
-		And I wait "30" seconds for the element found by "Learn Swift" to be displayed
-		And I click the hidden link with the text content of "Learn Swift"
-		And I wait "30" seconds for the element found by alias "HomeLink" to be displayed
-		And I go back

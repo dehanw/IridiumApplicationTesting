@@ -1,12 +1,13 @@
 package au.com.agic.apptesting.steps;
 
 import au.com.agic.apptesting.State;
-import au.com.agic.apptesting.utils.FeatureState;
+import cucumber.api.java.en.Given;
+import cucumber.api.java.en.When;
+import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
-import cucumber.api.java.en.Given;
-import cucumber.api.java.en.When;
+import static com.google.common.base.Preconditions.checkArgument;
 
 /**
  * Gherkin steps that are used to initialise the test script.
@@ -14,14 +15,19 @@ import cucumber.api.java.en.When;
  * These steps have Atom snipptets that start with the prefix "set".
  * See https://github.com/mcasperson/iridium-snippets for more details.
  */
+@Component
 public class InitialisationStepDefinitions {
 	private static final long MILLISECONDS_PER_SECOND = 1000;
 
 	/**
-	 * Get the web driver for this thread
+	 * Sets the default amount of time to wait between simulated key presses
+	 * @param delay The number of milliseconds to pause between simulated key presses
 	 */
-	private final FeatureState featureState =
-		State.THREAD_DESIRED_CAPABILITY_MAP.getDesiredCapabilitiesForThread();
+	@When("^I set the default keystroke delay to \"(\\d+)\" milliseconds$")
+	public void setKeystrokeDelay(final Integer delay) {
+		checkArgument(delay >= 0);
+		State.getFeatureStateForThread().setDefaultKeyStrokeDelay(delay);
+	}
 
 	/**
 	 * This step can be used to define the amount of time each additional step will wait before continuing.
@@ -31,9 +37,10 @@ public class InitialisationStepDefinitions {
 	 *
 	 * @param numberOfSeconds The number of seconds to wait before each step completes
 	 */
-	@When("^I set the default wait time between steps to \"(\\d+)\"(?: seconds?)?$")
+	@When("^I set the default wait time between steps to \"(\\d+(?:\\.\\d+)?)\"(?: seconds?)?$")
 	public void setDefaultSleepTime(final String numberOfSeconds) {
-		featureState.setDefaultSleep(Integer.parseInt(numberOfSeconds) * MILLISECONDS_PER_SECOND);
+		final float waitTime = Float.parseFloat(numberOfSeconds) * MILLISECONDS_PER_SECOND;
+		State.getFeatureStateForThread().setDefaultSleep((long) waitTime);
 	}
 
 	/**
@@ -45,13 +52,10 @@ public class InitialisationStepDefinitions {
 	 *                        before continuing with a step
 	 */
 	@When("^I set the default wait for elements to be available to \"(\\d+)\"(?: seconds?)?$")
-	public void setDefaultWaitTime(final String numberOfSeconds) {
-		featureState.setDefaultWait(Integer.parseInt(numberOfSeconds));
+	public void setDefaultWaitTime(final Integer numberOfSeconds) {
+		checkArgument(numberOfSeconds >= 0);
+		State.getFeatureStateForThread().setDefaultWait(numberOfSeconds);
 	}
-
-	// </editor-fold>
-
-	// <editor-fold desc="Open Page">
 
 	/**
 	 * Takes a gerkin table and saves the key value pairs (key being alias names referenced in other steps).
@@ -60,9 +64,9 @@ public class InitialisationStepDefinitions {
 	 */
 	@Given("^(?:I set )?the alias mappings")
 	public void pageObjectMappings(final Map<String, String> aliasTable) {
-		final Map<String, String> dataset = featureState.getDataSet();
+		final Map<String, String> dataset = State.getFeatureStateForThread().getDataSet();
 		dataset.putAll(aliasTable);
-		featureState.setDataSet(dataset);
+		State.getFeatureStateForThread().setDataSet(dataset);
 	}
 
 	/**
@@ -72,7 +76,7 @@ public class InitialisationStepDefinitions {
 	@Given("^I set autoaliasing to \"((?:true)|(?:false))\"$")
 	public void configureAutoaliasing(final String enabled) {
 		final boolean enabledValue = Boolean.parseBoolean(enabled);
-		featureState.setAutoAlias(enabledValue);
+		State.getFeatureStateForThread().setAutoAlias(enabledValue);
 	}
 
 	/**
@@ -80,7 +84,7 @@ public class InitialisationStepDefinitions {
 	 */
 	@Given("^I enable autoaliasing$")
 	public void enableAutoaliasing() {
-		featureState.setAutoAlias(true);
+		State.getFeatureStateForThread().setAutoAlias(true);
 	}
 
 	/**
@@ -88,6 +92,6 @@ public class InitialisationStepDefinitions {
 	 */
 	@Given("^I disable autoaliasing$")
 	public void disableAutoaliasing() {
-		featureState.setAutoAlias(false);
+		State.getFeatureStateForThread().setAutoAlias(false);
 	}
 }

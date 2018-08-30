@@ -6,7 +6,160 @@ import java.util.regex.Pattern;
  * Common settings
  */
 public final class Constants {
+	/**
+	 * Default timeouts when making HTTP calls
+	 */
+	public static final int HTTP_TIMEOUTS = 1000;
 
+	/**
+	 * The name of the downloaded browserstack video file
+	 */
+	public static final String BROWSERSTACK_VIDEO_FILE_NAME = "BrowserStack";
+
+	/**
+	 * The system variable that determines if we should download the browserstack
+	 * video once the test is complete
+	 */
+	public static final String DOWNLOAD_BROWSERSTACK_VIDEO_ON_COMPLETION = "downloadBrowserStackVideo";
+
+	/**
+	 * The amount of time to take moving the mouse across the screen
+	 */
+	public static final int MOUSE_MOVE_TIME = 500;
+	/**
+	 * The number of steps to use when moving the mouse across the screen
+	 */
+	public static final int MOUSE_MOVE_STEPS = 100;
+
+	/**
+	 * The number of times we try to copy files from URLs
+	 */
+	public static final int URL_COPY_RETRIES = 3;
+
+	/**
+	 * The number of times we try to perform web driver actions that might fail
+	 */
+	public static final int WEBDRIVER_ACTION_RETRIES = 3;
+
+	/**
+	 * The error code returned when a web driver failed to start
+	 */
+	public static final int WEB_DRIVER_FAILURE_EXIT_CODE = -3;
+
+	/**
+	 * The format of dates that are saved in filenames like screenshots and har files
+	 */
+	public static final String FILE_DATE_FORMAT = "YYYYMMddHHmmssSSS";
+
+	/**
+	 * The base file name for the default har file
+	 */
+	public static final String HAR_FILE_NAME_PREFIX = "browsermob";
+	/**
+	 * The extension for the default har file
+	 */
+	public static final String HAR_FILE_NAME_EXTENSION = "har";
+
+	/**
+	 * The default name of the HAR file saved by browsermob
+	 */
+	public static final String HAR_FILE_NAME = HAR_FILE_NAME_PREFIX + "." + HAR_FILE_NAME_EXTENSION;
+
+	/**
+	 * The system property that can be used to enable the mouse cursor to be moved
+	 * to the element being interacted with
+	 */
+	public static final String MOVE_CURSOR_TO_ELEMENT = "moveCursorToElement";
+
+	/**
+	 * The system property that can be used in conjuntion with moveCursorToElement
+	 * to define the screen zoom in windows.
+	 */
+	public static final String SCREEN_ZOOM_FACTOR = "screenZoomFactor";
+
+	/**
+	 * A value to add to the vertical position of elements to account for message bars
+	 * like the one in chrome when being run as part of an automated test
+	 */
+	public static final String MOUSE_MOVE_VERTICAL_OFFSET = "mouseMoveVerticalOffset";
+
+	/**
+	 * The system property that can be used to disable the automatic webdriver extraction
+	 */
+	public static final String USE_SUPPLIED_WEBDRIVERS = "useSuppliedWebdrivers";
+
+	/**
+	 * The system property that defines how long the app will run for before shuting down
+	 */
+	public static final String MAX_EXECUTION_TIME = "maxExecutionTime";
+
+	/**
+	 * The name of the merged junit xml file
+	 */
+	public static final String MERGED_REPORT = "MergedReport.xml";
+
+	/**
+	 * Sets the delay between test retries
+	 */
+	public static final String DELAY_BETWEEN_RETRY = "delayBetweenRetries";
+
+	/**
+	 * Sets the access token used when accessing browserstack
+	 */
+	public static final String BROWSER_STACK_ACCESS_TOKEN = "browserStackAccessToken";
+	/**
+	 * Sets the username used when accessing browserstack
+	 */
+	public static final String BROWSER_STACK_USERNAME = "browserStackUsername";
+
+	/**
+	 * This system property can be set to true to disable all automatic workarounds implemented for different
+	 * browsers.
+	 */
+	public static final String DISABLE_INTEROP = "disableInterop";
+
+	/**
+	 * Because the web driver is not thread safe, we need to do a running loop over
+	 * each of the different element location methods in short time slices to emulate
+	 * a parallel search.
+	 *
+	 * This value also serves as the default sleep time for any loop.
+	 */
+	public static final int TIME_SLICE = 100;
+
+	public static final int MILLISECONDS_PER_SECOND = 1000;
+
+	/**
+	 * This is the prefix we use for the thread name
+	 */
+	public static final String THREAD_NAME_PREFIX = "CucumberThread";
+
+	/**
+	 * A system property used to enable or disable the HTML report file
+	 */
+	public static final String HTML_REPORT_FILE = "htmlReportFile";
+	/**
+	 * A system property used to enable or disable the JSON report file
+	 */
+	public static final String JSON_REPORT_FILE = "jsonReportFile";
+	/**
+	 * A system property used to enable or disable the Text report file
+	 */
+	public static final String TXT_REPORT_FILE = "txtReportFile";
+	/**
+	 * A system property used to enable or disable the JUnit report file
+	 */
+	public static final String JUNIT_REPORT_FILE = "junitReportFile";
+
+	/**
+	 * Set this system property to true to configure cucumber to output text in monochrome
+	 */
+	public static final String MONOCHROME_OUTPUT = "monochromeOutput";
+
+	/**
+	 * The system property that is set to enable a dry run through the script
+	 */
+	public static final String DRY_RUN = "dryRun";
 	/**
 	 * The system property that defines how many times to retry tests before giving up
 	 */
@@ -25,11 +178,6 @@ public final class Constants {
 	 * This system property hold the name of an internal proxy to start before the tests are run
 	 */
 	public static final String START_INTERNAL_PROXY = "startInternalProxy";
-	/**
-	 * The value assigned to the START_INTERNAL_PROXY setting to start the ZAP proxy
-	 */
-	public static final String ZED_ATTACK_PROXY = "zap";
-
 	/**
 	 * This system property defines the name of the featureGroup that we'll be testing
 	 */
@@ -55,6 +203,14 @@ public final class Constants {
 	 */
 	public static final String ENABLE_SCREENSHOTS = "enableScenarioScreenshots";
 	/**
+	 * If true, the test script will save a screenshot if there was an error
+	 */
+	public static final String ENABLE_SCREENSHOT_ON_ERROR = "enableScreenshotOnError";
+	/**
+	 * This prefix is used in the filename for screenshots taken when the script has failed
+	 */
+	public static final String FAILURE_SCREENSHOT_SUFFIX = "Failure";
+	/**
 	 * The value assigned to the TEST_DESTINATION_SYSTEM_PROPERTY to indicate that the tests should
 	 * be loaded locally
 	 */
@@ -67,6 +223,33 @@ public final class Constants {
 	public static final String CHROME = "Chrome";
 	/**
 	 * The value assigned to the system property to indicate that the tests should
+	 * be run in chrome run in full screen mode.
+	 */
+	public static final String CHROME_FULLSCREEN = "ChromeFullscreen";
+	/**
+	 * The value assigned to the system property to indicate that the tests should
+	 * be run in chrome run in full screen mode with security settings enabled.
+	 */
+	public static final String CHROME_SECURE_FULLSCREEN = "ChromeSecureFullscreen";
+
+	/**
+	 * The value assigned to the system property to indicate that the tests should
+	 * be run in chrome with a number of command line switches to lock it down.
+	 */
+	public static final String CHROME_SECURE = "ChromeSecure";
+	/**
+	 * The value assigned to the system property to indicate that the tests should
+	 * be run in chrome. Chrome is the default if no other matches are found for
+	 * the system property.
+	 */
+	public static final String CHROME_HEADLESS = "ChromeHeadless";
+	/**
+	 * The value assigned to the system property to indicate that the tests should
+	 * be run in chrome in headless mode locked down.
+	 */
+	public static final String CHROME_HEADLESS_SECURE = "ChromeHeadlessSecure";
+	/**
+	 * The value assigned to the system property to indicate that the tests should
 	 * be run in Firefox using the Marionette driver. This is required with Firefox 48
 	 * and all future versions.
 	 * See https://github.com/SeleniumHQ/selenium/issues/2559 for details.
@@ -74,9 +257,15 @@ public final class Constants {
 	public static final String MARIONETTE = "Marionette";
 	/**
 	 * The value assigned to the system property to indicate that the tests should
-	 * be run in Firefox. This is only valid for versions of Firefox up to 47.0.1
+	 * be run in Firefox.
 	 */
 	public static final String FIREFOX = "Firefox";
+	/**
+	 * The value assigned to the system property to indicate that the tests should
+	 * be run in Firefox in headless mode. This is only valid for versions of Firefox
+	 * 56 and above.
+	 */
+	public static final String FIREFOXHEADLESS = "FirefoxHeadless";
 	/**
 	 * The value assigned to the TEST_DESTINATION_SYSTEM_PROPERTY to indicate that the tests should
 	 * be run in Safari.
@@ -103,6 +292,10 @@ public final class Constants {
 	 */
 	public static final String PHANTOMJS = "PhantomJS";
 	/**
+	 * The location of the Firefox executable
+	 */
+	public static final String FIREFOX_BINARY = "firefoxBinary";
+	/**
 	 * The system property that defines the phantomjs logging level
 	 */
 	public static final String PHANTOMJS_LOGGING_LEVEL_SYSTEM_PROPERTY = "phantomJSLoggingLevel";
@@ -126,6 +319,10 @@ public final class Constants {
 	 * The location of the opera webdriver executable https://github.com/operasoftware/operachromiumdriver/releases
 	 */
 	public static final String OPERA_WEB_DRIVER_LOCATION_SYSTEM_PROPERTY = "webdriver.opera.driver";
+	/**
+	 * The location of the opera binary
+	 */
+	public static final String OPERA_BIN_LOCATION_SYSTEM_PROPERTY = "opera.binary";
 	/**
 	 * The location of the Edge webdriver executable
      */
@@ -164,6 +361,10 @@ public final class Constants {
 	 */
 	public static final String APP_URL_OVERRIDE_SYSTEM_PROPERTY = "appURLOverride";
 	/**
+	 * Defines a URL to name mapping from a system property
+	 */
+	public static final Pattern APP_URL_OVERRIDE_SYSTEM_PROPERTY_REGEX = Pattern.compile("appURLOverride\\.(.+)");
+	/**
 	 * The tags to use for the test
 	 */
 	public static final String TAGS_OVERRIDE_SYSTEM_PROPERTY = "tagsOverride";
@@ -182,6 +383,10 @@ public final class Constants {
 	 * once the test is completed.
 	 */
 	public static final String OPEN_REPORT_FILE_SYSTEM_PROPERTY = "openReportFile";
+	/**
+	 * The directory that will hold the final reports
+	 */
+	public static final String REPORTS_DIRECTORY = "reportsDirectory";
 	/**
 	 * The name of the system property that defines whether the cucumber reports are saved in the
 	 * users home directory, or in the current working directory
@@ -274,6 +479,21 @@ public final class Constants {
 	 * How long to delay when entering each character into a text box
 	 */
 	public static final int KEY_STROKE_DELAY = 300;
+
+	/**
+	 * How quickly Selenium should poll the browser for an element it is waiting for
+	 */
+	public static final int ELEMENT_WAIT_SLEEP_TIMEOUT = 100;
+
+	/**
+	 * A regex that catches line endings across multiple platforms
+	 */
+	public static final String LINE_END_REGEX = "\\r\\n?|\\n";
+
+	/**
+	 * Line endings used by any generated files
+	 */
+	public static final String LINE_END_OUTPUT = "\n";
 
 	private Constants() {
 	}
